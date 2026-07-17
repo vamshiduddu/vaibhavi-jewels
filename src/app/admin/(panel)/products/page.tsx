@@ -9,7 +9,7 @@ export default async function AdminProductsPage() {
     include: {
       category: true,
       collection: true,
-      images: { orderBy: [{ featured: "desc" }, { sortOrder: "asc" }], take: 1 },
+      images: { where: { kind: "image" }, orderBy: [{ featured: "desc" }, { sortOrder: "asc" }], take: 1 },
     },
   });
 

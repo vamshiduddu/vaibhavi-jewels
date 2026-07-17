@@ -25,7 +25,7 @@ export default async function SearchPage({ searchParams }: Props) {
         },
         take: 24,
         orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
-        include: { images: { orderBy: [{ featured: "desc" }, { sortOrder: "asc" }], take: 1 } },
+        include: { images: { where: { kind: "image" }, orderBy: [{ featured: "desc" }, { sortOrder: "asc" }], take: 1 } },
       })
     : [];
 

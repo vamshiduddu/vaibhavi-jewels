@@ -82,7 +82,7 @@ export async function getCartDetail(): Promise<CartDetail> {
       items: {
         orderBy: { createdAt: "asc" },
         include: {
-          product: { include: { images: { orderBy: [{ featured: "desc" }, { sortOrder: "asc" }], take: 1 } } },
+          product: { include: { images: { where: { kind: "image" }, orderBy: [{ featured: "desc" }, { sortOrder: "asc" }], take: 1 } } },
         },
       },
     },

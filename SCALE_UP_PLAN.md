@@ -120,12 +120,22 @@ Core entities:
 - ProductVariant
 - ProductImage
 - ProductAttribute
+- BarcodeLabel
 - InventoryRecord
+- InventoryAdjustment
+- StoreLocation
 - Cart
 - CartItem
 - Order
 - OrderItem
 - Payment
+- OfflineSale
+- OfflineSaleItem
+- PurchaseRecord
+- PurchaseRecordItem
+- Supplier
+- PurchaseBill
+- CashCounterSession
 - Coupon
 - Promotion
 - PromotionRule
@@ -156,6 +166,8 @@ Suggested route map:
 - `/account`
 - `/account/orders`
 - `/wishlist`
+- `/offers`
+- `/offers/[slug]`
 - `/admin`
 
  admin route grouping:
@@ -166,8 +178,13 @@ Suggested route map:
 - `/admin/subcategories`
 - `/admin/collections`
 - `/admin/orders`
+- `/admin/offline-sales`
+- `/admin/purchases`
 - `/admin/customers`
 - `/admin/coupons`
+- `/admin/barcodes`
+- `/admin/users`
+- `/admin/roles`
 - `/admin/content`
 - `/admin/settings`
 
@@ -250,6 +267,8 @@ Each product should support:
 - tags
 - multiple images
 - featured image
+- barcode value
+- barcode type
 - status
 - SEO title
 - SEO description
@@ -264,6 +283,9 @@ Optional but useful:
 - promotional badges
 - limited-time pricing windows
 - campaign priority ordering
+- vendor or supplier reference
+- purchase cost
+- making charges or internal cost notes
 
 ## Admin Panel Requirements
 
@@ -282,6 +304,12 @@ Required modules:
 - homepage sections
 - inventory
 - orders
+- offline sales
+- purchase records
+- suppliers
+- barcode printing
+- users
+- roles and permissions
 - customers
 - coupons
 - settings
@@ -303,16 +331,34 @@ Required admin actions:
 - configure promotional banners and badges
 - manage homepage content
 - manage stock
+- create and print product barcodes
+- assign barcode labels to products or variants
+- record offline sales
+- record offline purchases
+- record stock intake from suppliers
+- adjust stock with audit trail
 - update order status
 - view payment state
 - manage coupon rules
+- create and manage users
+- assign role-based limited access
+- restrict modules by role and permission
 
 Required roles:
 
 - `super_admin`
+- `admin`
+- `sub_admin`
 - `catalog_manager`
+- `content_manager`
+- `inventory_manager`
 - `order_manager`
+- `supervisor`
+- `accounts_manager`
+- `store_staff`
 - `support`
+
+Role access should be permission-driven, not hardcoded by UI only. `super_admin` must be able to create custom sub-admin users and assign only the modules/actions they are allowed to access.
 
 ## Commerce Requirements
 
@@ -330,6 +376,8 @@ Required user features:
 - checkout
 - address entry
 - order confirmation
+- special offers browsing
+- campaign landing pages
 
 Checkout should support:
 
@@ -368,6 +416,14 @@ Payment states to model:
 - paid
 - failed
 - refunded
+
+Offline payment states to model:
+
+- cash
+- card
+- UPI
+- split_payment
+- credit_pending
 
 ## Promotions And Special Features
 
@@ -427,6 +483,13 @@ Required order features:
 - internal notes
 - status updates
 
+The system should support both online and offline order flows under one unified order domain where possible, with source tracking such as:
+
+- `online_store`
+- `offline_store`
+- `manual_admin`
+- `whatsapp_order`
+
 ## Inventory Requirements
 
 Inventory should be dynamic and tracked in the database.
@@ -437,7 +500,123 @@ Required features:
 - low stock indication
 - out-of-stock handling
 - stock deduction after successful payment
+- stock deduction after offline sale
+- stock increase after offline purchase entry
 - manual admin stock adjustment
+- inventory adjustment reasons
+- inventory audit history
+- location-aware stock if a store/warehouse split is needed later
+
+## Offline Retail And POS Requirements
+
+The same system should also manage offline store operations. This is not a separate tool. Offline retail must live inside the same admin and inventory system.
+
+Required offline capabilities:
+
+- create products with barcode-ready identifiers
+- generate barcode labels for every product or variant
+- print barcode labels in batch
+- reprint barcode labels when needed
+- scan or search barcode in admin sale flow
+- record offline sales from the store
+- record offline purchase entries from suppliers
+- record manual walk-in customer purchases
+- track payment mode for offline sales
+- maintain purchase history and sale history per product
+- maintain stock movement history
+
+Offline sales module should support:
+
+- barcode search
+- SKU search
+- quick cart for counter billing
+- customer optional for walk-in purchase
+- offline discount entry with permissions
+- invoice or receipt generation
+- print-friendly bill layout
+- sale source tagging
+
+Purchase records module should support:
+
+- supplier selection
+- purchase date
+- bill or invoice number
+- purchased products
+- quantity received
+- unit cost
+- total cost
+- notes
+- stock increment on confirmation
+
+Barcode requirements:
+
+- unique barcode value per product or variant
+- support common formats such as `Code 128`
+- printable label layout
+- barcode shown in admin product detail
+- barcode usable for offline sale search
+
+## Roles, Permissions, And Access Control
+
+Access control needs to be deeper than a simple admin/sub-admin split.
+
+The system should use RBAC with permission groups such as:
+
+- product management
+- category and subcategory management
+- collection management
+- inventory viewing
+- inventory adjustment
+- barcode generation and printing
+- online order management
+- offline sale entry
+- purchase entry
+- promotion management
+- coupon management
+- customer management
+- content management
+- user management
+- settings management
+- reports access
+
+Example role model:
+
+- `super_admin`: full access, role creation, permission assignment, all modules
+- `admin`: near-full operational access but not platform-critical settings unless granted
+- `sub_admin`: custom limited-access role created by super admin
+- `content_manager`: banners, homepage sections, collections, non-financial product content
+- `catalog_manager`: products, categories, subcategories, attributes
+- `inventory_manager`: stock, purchases, barcode labels, stock adjustments
+- `order_manager`: online orders, fulfilment, status updates
+- `supervisor`: reporting, oversight, approvals, limited edits
+- `accounts_manager`: payments, refunds, purchase cost visibility, financial reporting
+- `store_staff`: offline sales entry, barcode lookup, limited order visibility
+- `support`: customer and order support with restricted write access
+
+Permission rules should allow:
+
+- module-level access
+- action-level access such as create, edit, delete, approve, print, refund
+- sensitive field restrictions such as purchase cost visibility
+- optional approval flows for high-risk actions
+
+## Reporting Requirements
+
+Launch should include operational reporting for both online and offline business.
+
+Required reports:
+
+- online sales summary
+- offline sales summary
+- top-selling products
+- low-stock report
+- inventory movement report
+- purchase history report
+- promotion performance report
+- payment mode report
+- staff activity log
+
+## Content Management Requirements
 
 ## Content Management Requirements
 
@@ -450,6 +629,8 @@ Admin-managed content should include:
 - homepage banners
 - offer banners
 - sale campaign banners
+- special offer cards
+- campaign landing pages
 - featured sections
 - footer text
 - contact links
@@ -482,6 +663,9 @@ Must be included in the hard launch:
 - Make promotions dynamic
 - Make special offers dynamic
 - Support sitewide discount campaigns
+- Support offline sales and purchase records
+- Support barcode generation and printing
+- Support limited-access sub-admin roles
 - Make homepage sections dynamic
 - Do not rely on hardcoded category pages
 - Do not keep static HTML storefront structure as the final product
@@ -491,15 +675,15 @@ Must be included in the hard launch:
 Even though this is a single hard launch, the engineering work still has to happen in a concrete order. The difference is that all of these are part of one planned release.
 
 1. Scaffold the `Next.js` app and move the current design system into it.
-2. Define the database schema for catalog, admin, orders, payments, and content.
-3. Build admin authentication and role management.
-4. Build admin CRUD for categories, subcategories, collections, and products.
+2. Define the database schema for catalog, admin, orders, offline retail, barcodes, payments, and content.
+3. Build admin authentication, roles, permissions, and limited-access sub-admin support.
+4. Build admin CRUD for categories, subcategories, collections, products, suppliers, and barcode labels.
 5. Seed the existing catalog structure and brand content from the current repo.
-6. Build all dynamic storefront routes.
-7. Build cart and checkout.
+6. Build all dynamic storefront routes and promotional pages.
+7. Build cart, checkout, and online ordering.
 8. Integrate Razorpay and webhook processing.
-9. Build order and inventory operations in admin.
-10. Add SEO, content management, and launch hardening.
+9. Build inventory, offline sales, purchase records, and barcode printing operations in admin.
+10. Add SEO, reporting, content management, and launch hardening.
 
 ## Immediate Next Steps
 
@@ -510,6 +694,8 @@ The repo plan should now assume:
 - current repo visuals are the design source
 - all catalog structure is database-driven
 - all important storefront sections are admin-driven
+- online and offline inventory are handled in one system
+- barcode and role-based access control are first-class launch requirements
 
 ## Recommended Execution For This Repo
 
@@ -519,5 +705,5 @@ The next implementation work should be:
 2. Extract the existing `styles.css` tokens and visual system into the new app.
 3. Seed current categories, collections, banner, logo, site content, and initial promotional structures into database records.
 4. Build database-first dynamic routes for categories, subcategories, collections, products, and promotional sections.
-5. Build admin so future uploads, offers, discounts, and content changes happen without editing code.
-6. Integrate Razorpay and complete the full checkout, discount, and order flow before launch.
+5. Build admin so future uploads, offers, discounts, barcode labels, purchases, and content changes happen without editing code.
+6. Integrate Razorpay and complete the full online checkout, offline sales, discount, inventory, and order flow before launch.

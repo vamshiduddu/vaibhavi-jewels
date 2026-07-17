@@ -30,7 +30,7 @@ export default async function CategoryPage({ params }: Props) {
       products: {
         where: { status: "active" },
         orderBy: [{ featured: "desc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
-        include: { images: { orderBy: [{ featured: "desc" }, { sortOrder: "asc" }], take: 1 } },
+        include: { images: { where: { kind: "image" }, orderBy: [{ featured: "desc" }, { sortOrder: "asc" }], take: 1 } },
       },
     },
   });

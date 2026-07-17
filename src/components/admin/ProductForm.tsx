@@ -6,6 +6,7 @@ import type {
   Subcategory,
 } from "@prisma/client";
 import { saveProduct } from "@/lib/admin/catalog-actions";
+import MediaField from "@/components/admin/MediaField";
 
 type Props = {
   product?: (Product & { images: ProductImage[] }) | null;
@@ -115,14 +116,18 @@ export default function ProductForm({ product, categories, collections }: Props)
         </label>
       </div>
 
-      <label>
-        Image URLs (one per line, first is the featured image)
-        <textarea
-          name="images"
-          placeholder="https://res.cloudinary.com/.../earrings-1.jpg"
-          defaultValue={product?.images.map((i) => i.url).join("\n") ?? ""}
-        />
-      </label>
+      <p style={{ fontSize: 12, fontWeight: 600, margin: "0 0 -8px" }}>
+        Media (images upload to storage; video links embed in the gallery)
+      </p>
+      <MediaField
+        initial={
+          product?.images.map((i) => ({
+            url: i.url,
+            kind: (i.kind === "video" ? "video" : "image") as "image" | "video",
+            alt: i.alt,
+          })) ?? []
+        }
+      />
 
       <label>
         Tags (comma separated)

@@ -8,6 +8,7 @@ import { getWishlistSessionId } from "@/lib/wishlist-actions";
 import AddToCartButton from "@/components/AddToCartButton";
 import WishlistButton from "@/components/WishlistButton";
 import ProductCard from "@/components/ProductCard";
+import ProductGallery from "@/components/ProductGallery";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -15,7 +16,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const product = await db.product.findUnique({
     where: { slug },
-    include: { images: { take: 1, orderBy: [{ featured: "desc" }, { sortOrder: "asc" }] } },
+    include: {
+      images: { where: { kind: "image" }, take: 1, orderBy: [{ featured: "desc" }, { sortOrder: "asc" }] },
+    },
   });
   if (!product) return {};
   return {
@@ -55,11 +58,16 @@ export default async function ProductPage({ params }: Props) {
         where: { categoryId: product.categoryId, status: "active", id: { not: product.id } },
         take: 3,
         orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
-        include: { images: { orderBy: [{ featured: "desc" }, { sortOrder: "asc" }], take: 1 } },
+        include: { images: { where: { kind: "image" }, orderBy: [{ featured: "desc" }, { sortOrder: "asc" }], take: 1 } },
       })
     : [];
 
-  const mainImage = product.images[0];
+  const galleryMedia = product.images.map((m) => ({
+    url: m.url,
+    kind: (m.kind === "video" ? "video" : "image") as "image" | "video",
+    alt: m.alt,
+  }));
+  const imageOnly = product.images.filter((m) => m.kind !== "video");
   const outOfStock = product.stockQuantity < 1;
   const lowStock = !outOfStock && product.stockQuantity <= product.lowStockThreshold;
 
@@ -68,7 +76,7 @@ export default async function ProductPage({ params }: Props) {
     "@type": "Product",
     name: product.title,
     description: product.shortDescription ?? undefined,
-    image: product.images.map((i) => i.url),
+    image: imageOnly.map((i) => i.url),
     sku: product.sku ?? undefined,
     offers: {
       "@type": "Offer",
@@ -87,22 +95,7 @@ export default async function ProductPage({ params }: Props) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <section className="product-detail">
-        <div className="product-gallery">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            className="product-gallery-main"
-            src={mainImage?.url ?? "/vaibhavi-logo.png"}
-            alt={mainImage?.alt ?? product.title}
-          />
-          {product.images.length > 1 ? (
-            <div className="product-gallery-thumbs">
-              {product.images.slice(1, 6).map((image) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={image.id} src={image.url} alt={image.alt ?? product.title} />
-              ))}
-            </div>
-          ) : null}
-        </div>
+        <ProductGallery media={galleryMedia} title={product.title} />
         <div className="product-info">
           <p className="product-tag">
             {[product.collection?.name, product.category?.name, product.subcategory?.name]

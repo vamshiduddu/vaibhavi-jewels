@@ -17,7 +17,7 @@ export default async function HomePage() {
         where: { status: "active" },
         orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
         take: 6,
-        include: { images: { orderBy: [{ featured: "desc" }, { sortOrder: "asc" }], take: 1 } },
+        include: { images: { where: { kind: "image" }, orderBy: [{ featured: "desc" }, { sortOrder: "asc" }], take: 1 } },
       }),
       db.banner.findMany({
         where: {

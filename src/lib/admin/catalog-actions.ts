@@ -125,10 +125,17 @@ export async function saveProduct(formData: FormData) {
   await requireAdmin("catalog");
   const id = optional(formData, "id");
 
-  const imageUrls = str(formData, "images")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+  let media: { url: string; kind: "image" | "video" }[] = [];
+  try {
+    const parsed = JSON.parse(str(formData, "media") || "[]");
+    if (Array.isArray(parsed)) {
+      media = parsed
+        .filter((m) => m && typeof m.url === "string" && m.url.trim())
+        .map((m) => ({ url: m.url.trim(), kind: m.kind === "video" ? "video" : "image" }));
+    }
+  } catch {
+    media = [];
+  }
 
   const data = {
     title: str(formData, "title"),
@@ -172,15 +179,17 @@ export async function saveProduct(formData: FormData) {
     productId = created.id;
   }
 
-  // replace image list; first image is featured
+  // replace media list; first image is the featured/cover image
+  const firstImageIdx = media.findIndex((m) => m.kind === "image");
   await db.productImage.deleteMany({ where: { productId } });
-  if (imageUrls.length) {
+  if (media.length) {
     await db.productImage.createMany({
-      data: imageUrls.map((url, index) => ({
+      data: media.map((m, index) => ({
         productId,
-        url,
+        url: m.url,
+        kind: m.kind,
         sortOrder: index,
-        featured: index === 0,
+        featured: index === firstImageIdx,
         alt: data.title,
       })),
     });
