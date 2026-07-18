@@ -1680,6 +1680,12 @@ h3 {
   width: 16px;
 }
 
+.admin-two-col {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
 .stat-grid {
   display: grid;
   gap: 14px;
@@ -1929,6 +1935,52 @@ h3 {
   padding: 3px 11px;
 }
 
+.barcode-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+.barcode-card {
+  background: #fffdf8;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+}
+
+.barcode-card strong {
+  display: block;
+  font-size: 15px;
+}
+
+.barcode-card span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.barcode-svg {
+  background: #fff;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  overflow: hidden;
+  padding: 14px;
+}
+
+.barcode-svg svg {
+  display: block;
+  height: auto;
+  width: 100%;
+}
+
+.barcode-meta {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 980px) {
@@ -1960,6 +2012,10 @@ h3 {
 
   .dash-row-2-1,
   .dash-row-1-1 {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-two-col {
     grid-template-columns: 1fr;
   }
 }
@@ -2053,5 +2109,33 @@ h3 {
 
   .stat-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  .admin-sidebar,
+  .admin-header a,
+  .admin-header button,
+  .sidebar-footer,
+  .primary-button,
+  .secondary-button {
+    display: none !important;
+  }
+
+  .admin-shell {
+    display: block;
+  }
+
+  .admin-main {
+    padding: 0;
+  }
+
+  .barcode-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .barcode-card {
+    break-inside: avoid;
+    box-shadow: none;
   }
 }

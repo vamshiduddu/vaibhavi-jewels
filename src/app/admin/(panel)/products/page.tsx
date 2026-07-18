@@ -1,15 +1,21 @@
 import Link from "next/link";
+import { archiveProduct } from "@/lib/admin/catalog-actions";
+import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { formatINR } from "@/lib/format";
-import { archiveProduct } from "@/lib/admin/catalog-actions";
 
 export default async function AdminProductsPage() {
+  await requireAdmin("catalog");
   const products = await db.product.findMany({
     orderBy: { updatedAt: "desc" },
     include: {
       category: true,
       collection: true,
-      images: { where: { kind: "image" }, orderBy: [{ featured: "desc" }, { sortOrder: "asc" }], take: 1 },
+      images: {
+        where: { kind: "image" },
+        orderBy: [{ featured: "desc" }, { sortOrder: "asc" }],
+        take: 1,
+      },
     },
   });
 
@@ -29,6 +35,7 @@ export default async function AdminProductsPage() {
             <th>Category</th>
             <th>Price</th>
             <th>Stock</th>
+            <th>Barcode</th>
             <th>Status</th>
             <th></th>
           </tr>
@@ -61,11 +68,19 @@ export default async function AdminProductsPage() {
               <td>{formatINR(product.price)}</td>
               <td>{product.stockQuantity}</td>
               <td>
+                <small style={{ color: "var(--muted)" }}>
+                  {product.barcodeValue ?? "Auto on save"}
+                  <br />
+                  {product.barcodeType}
+                </small>
+              </td>
+              <td>
                 <span className="pill">{product.status}</span>
               </td>
               <td>
                 <div className="table-actions">
                   <Link href={`/admin/products/${product.id}`}>Edit</Link>
+                  <Link href={`/admin/barcodes?productId=${product.id}`}>Barcode</Link>
                   {product.status !== "archived" ? (
                     <form action={archiveProduct}>
                       <input type="hidden" name="id" value={product.id} />
@@ -80,7 +95,7 @@ export default async function AdminProductsPage() {
           ))}
           {!products.length ? (
             <tr>
-              <td colSpan={7} style={{ color: "var(--muted)" }}>
+              <td colSpan={8} style={{ color: "var(--muted)" }}>
                 No products yet. Add your first product.
               </td>
             </tr>

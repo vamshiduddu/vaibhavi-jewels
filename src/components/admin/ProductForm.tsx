@@ -5,8 +5,8 @@ import type {
   ProductImage,
   Subcategory,
 } from "@prisma/client";
-import { saveProduct } from "@/lib/admin/catalog-actions";
 import MediaField from "@/components/admin/MediaField";
+import { saveProduct } from "@/lib/admin/catalog-actions";
 
 type Props = {
   product?: (Product & { images: ProductImage[] }) | null;
@@ -49,12 +49,25 @@ export default function ProductForm({ product, categories, collections }: Props)
 
       <div className="form-row-2">
         <label>
-          Price (₹)
-          <input name="price" type="number" step="0.01" min="0" required defaultValue={product ? Number(product.price) : ""} />
+          Price (Rs.)
+          <input
+            name="price"
+            type="number"
+            step="0.01"
+            min="0"
+            required
+            defaultValue={product ? Number(product.price) : ""}
+          />
         </label>
         <label>
-          Compare-at Price (₹)
-          <input name="compareAtPrice" type="number" step="0.01" min="0" defaultValue={product?.compareAtPrice ? Number(product.compareAtPrice) : ""} />
+          Compare-at Price (Rs.)
+          <input
+            name="compareAtPrice"
+            type="number"
+            step="0.01"
+            min="0"
+            defaultValue={product?.compareAtPrice ? Number(product.compareAtPrice) : ""}
+          />
         </label>
       </div>
 
@@ -64,8 +77,50 @@ export default function ProductForm({ product, categories, collections }: Props)
           <input name="sku" defaultValue={product?.sku ?? ""} />
         </label>
         <label>
+          Barcode Value
+          <input name="barcodeValue" defaultValue={product?.barcodeValue ?? ""} />
+        </label>
+      </div>
+
+      <div className="form-row-2">
+        <label>
+          Barcode Type
+          <select name="barcodeType" defaultValue={product?.barcodeType ?? "code39"}>
+            <option value="code39">Code 39</option>
+            <option value="code128">Code 128</option>
+            <option value="qr">QR</option>
+          </select>
+        </label>
+        <label>
           Stock Quantity
-          <input name="stockQuantity" type="number" min="0" defaultValue={product?.stockQuantity ?? 0} />
+          <input
+            name="stockQuantity"
+            type="number"
+            min="0"
+            defaultValue={product?.stockQuantity ?? 0}
+          />
+        </label>
+      </div>
+
+      <div className="form-row-2">
+        <label>
+          Purchase Cost (Rs.)
+          <input
+            name="purchaseCost"
+            type="number"
+            step="0.01"
+            min="0"
+            defaultValue={product?.purchaseCost ? Number(product.purchaseCost) : ""}
+          />
+        </label>
+        <label>
+          Low Stock Threshold
+          <input
+            name="lowStockThreshold"
+            type="number"
+            min="0"
+            defaultValue={product?.lowStockThreshold ?? 3}
+          />
         </label>
       </div>
 
@@ -73,7 +128,7 @@ export default function ProductForm({ product, categories, collections }: Props)
         <label>
           Category
           <select name="categoryId" defaultValue={product?.categoryId ?? ""}>
-            <option value="">— None —</option>
+            <option value="">None</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -84,7 +139,7 @@ export default function ProductForm({ product, categories, collections }: Props)
         <label>
           Subcategory
           <select name="subcategoryId" defaultValue={product?.subcategoryId ?? ""}>
-            <option value="">— None —</option>
+            <option value="">None</option>
             {subcategories.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.categoryName} / {s.name}
@@ -98,7 +153,7 @@ export default function ProductForm({ product, categories, collections }: Props)
         <label>
           Collection
           <select name="collectionId" defaultValue={product?.collectionId ?? ""}>
-            <option value="">— None —</option>
+            <option value="">None</option>
             {collections.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -162,22 +217,34 @@ export default function ProductForm({ product, categories, collections }: Props)
 
       <div className="form-row-2">
         <label>
-          Sale Price (₹, optional)
-          <input name="salePrice" type="number" step="0.01" min="0" defaultValue={product?.salePrice ? Number(product.salePrice) : ""} />
+          Sale Price (Rs., optional)
+          <input
+            name="salePrice"
+            type="number"
+            step="0.01"
+            min="0"
+            defaultValue={product?.salePrice ? Number(product.salePrice) : ""}
+          />
         </label>
-        <label>
-          Low Stock Threshold
-          <input name="lowStockThreshold" type="number" min="0" defaultValue={product?.lowStockThreshold ?? 3} />
-        </label>
+        <div />
       </div>
+
       <div className="form-row-2">
         <label>
           Sale Starts
-          <input name="saleStartsAt" type="datetime-local" defaultValue={dateInputValue(product?.saleStartsAt)} />
+          <input
+            name="saleStartsAt"
+            type="datetime-local"
+            defaultValue={dateInputValue(product?.saleStartsAt)}
+          />
         </label>
         <label>
           Sale Ends
-          <input name="saleEndsAt" type="datetime-local" defaultValue={dateInputValue(product?.saleEndsAt)} />
+          <input
+            name="saleEndsAt"
+            type="datetime-local"
+            defaultValue={dateInputValue(product?.saleEndsAt)}
+          />
         </label>
       </div>
 

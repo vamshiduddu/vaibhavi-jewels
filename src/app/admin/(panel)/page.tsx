@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { formatINR } from "@/lib/format";
+import { requireAdmin } from "@/lib/auth";
 import {
   AreaChart,
   BarChart,
@@ -22,6 +23,7 @@ function dayLabel(d: Date): string {
 }
 
 export default async function AdminDashboard() {
+  await requireAdmin("reports");
   const now = new Date();
   const from30 = new Date(now.getTime() - 30 * DAY);
   const from60 = new Date(now.getTime() - 60 * DAY);

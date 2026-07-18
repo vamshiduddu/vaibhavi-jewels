@@ -19,6 +19,9 @@ export type AdminSession = {
   email: string;
   name: string;
   role: AdminRole;
+  roleLabel?: string | null;
+  grantedPermissions: string[];
+  deniedPermissions: string[];
 };
 
 export async function createAdminSession(admin: {
@@ -26,11 +29,17 @@ export async function createAdminSession(admin: {
   email: string;
   name: string;
   role: AdminRole;
+  roleLabel?: string | null;
+  grantedPermissions?: string[];
+  deniedPermissions?: string[];
 }) {
   const token = await new SignJWT({
     email: admin.email,
     name: admin.name,
     role: admin.role,
+    roleLabel: admin.roleLabel ?? null,
+    grantedPermissions: admin.grantedPermissions ?? [],
+    deniedPermissions: admin.deniedPermissions ?? [],
   })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(admin.id)
@@ -59,11 +68,32 @@ export async function getAdminSession(): Promise<AdminSession | null> {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secretKey());
-    return {
+    const session = {
       sub: payload.sub as string,
       email: payload.email as string,
       name: payload.name as string,
       role: payload.role as AdminRole,
+      roleLabel: null,
+      grantedPermissions: [],
+      deniedPermissions: [],
+    };
+    const admin = await db.adminUser.findUnique({
+      where: { id: session.sub },
+      select: {
+        active: true,
+        role: true,
+        roleLabel: true,
+        grantedPermissions: true,
+        deniedPermissions: true,
+      },
+    });
+    if (!admin?.active) return null;
+    return {
+      ...session,
+      role: admin.role,
+      roleLabel: admin.roleLabel,
+      grantedPermissions: admin.grantedPermissions,
+      deniedPermissions: admin.deniedPermissions,
     };
   } catch {
     return null;
@@ -72,22 +102,58 @@ export async function getAdminSession(): Promise<AdminSession | null> {
 
 const ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
   super_admin: ["*"],
-  catalog_manager: ["catalog", "content", "promotions"],
+  admin: [
+    "catalog",
+    "content",
+    "promotions",
+    "orders",
+    "customers",
+    "inventory",
+    "offline-sales",
+    "purchases",
+    "barcodes",
+    "reports",
+  ],
+  sub_admin: [],
+  catalog_manager: ["catalog"],
+  content_manager: ["content", "promotions"],
+  inventory_manager: ["inventory", "barcodes", "purchases"],
   order_manager: ["orders", "customers", "inventory"],
+  supervisor: ["orders", "customers", "inventory:read", "reports", "offline-sales:read", "purchases:read"],
+  accounts_manager: ["orders:read", "customers:read", "promotions:read", "purchases", "reports"],
+  store_staff: ["offline-sales", "barcodes:read", "inventory:read", "customers:read"],
   support: ["orders:read", "customers:read"],
 };
 
-export function hasPermission(role: AdminRole, permission: string): boolean {
-  const grants = ROLE_PERMISSIONS[role] ?? [];
-  if (grants.includes("*") || grants.includes(permission)) return true;
+export function hasPermission(
+  role: AdminRole,
+  permission: string,
+  overrides?: { grantedPermissions?: string[]; deniedPermissions?: string[] },
+): boolean {
+  const grants = new Set(ROLE_PERMISSIONS[role] ?? []);
+  const granted = overrides?.grantedPermissions ?? [];
+  const denied = new Set(overrides?.deniedPermissions ?? []);
+  if (grants.has("*")) return !denied.has(permission) && !denied.has(permission.split(":")[0]);
+  if (granted.includes("*")) return !denied.has(permission) && !denied.has(permission.split(":")[0]);
+  if (denied.has(permission) || denied.has(permission.split(":")[0])) return false;
+  if (grants.has(permission) || granted.includes(permission)) return true;
   // an unscoped grant like "orders" covers scoped permissions like "orders:read"
-  return grants.includes(permission.split(":")[0]);
+  const scope = permission.split(":")[0];
+  return grants.has(scope) || granted.includes(scope);
 }
 
 export async function requireAdmin(permission?: string): Promise<AdminSession> {
   const session = await getAdminSession();
   if (!session) redirect("/admin/login");
-  if (permission && !hasPermission(session.role, permission)) redirect("/admin");
+  if (
+    permission &&
+    !hasPermission(session.role, permission, {
+      grantedPermissions: session.grantedPermissions,
+      deniedPermissions: session.deniedPermissions,
+    })
+  ) {
+    redirect("/admin");
+  }
   return session;
 }
 

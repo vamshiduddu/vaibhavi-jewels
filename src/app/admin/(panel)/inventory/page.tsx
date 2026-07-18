@@ -1,7 +1,9 @@
-import { db } from "@/lib/db";
 import { adjustStock } from "@/lib/admin/catalog-actions";
+import { requireAdmin } from "@/lib/auth";
+import { db } from "@/lib/db";
 
 export default async function AdminInventoryPage() {
+  await requireAdmin("inventory");
   const [products, recent] = await Promise.all([
     db.product.findMany({
       where: { status: { not: "archived" } },
@@ -10,7 +12,7 @@ export default async function AdminInventoryPage() {
     db.stockAdjustment.findMany({
       orderBy: { createdAt: "desc" },
       take: 20,
-      include: { product: true },
+      include: { product: true, admin: true },
     }),
   ]);
 
@@ -24,6 +26,7 @@ export default async function AdminInventoryPage() {
           <tr>
             <th>Product</th>
             <th>SKU</th>
+            <th>Barcode</th>
             <th>Stock</th>
             <th>Adjust</th>
           </tr>
@@ -34,28 +37,56 @@ export default async function AdminInventoryPage() {
               <td>
                 {product.title}
                 {product.stockQuantity <= product.lowStockThreshold ? (
-                  <span className="pill" style={{ marginLeft: 8, background: "rgba(116,19,30,0.12)", color: "var(--rose)" }}>
+                  <span
+                    className="pill"
+                    style={{
+                      marginLeft: 8,
+                      background: "rgba(116,19,30,0.12)",
+                      color: "var(--rose)",
+                    }}
+                  >
                     {product.stockQuantity < 1 ? "out of stock" : "low stock"}
                   </span>
                 ) : null}
               </td>
               <td>{product.sku ?? "—"}</td>
+              <td>
+                <small style={{ color: "var(--muted)" }}>
+                  {product.barcodeValue ?? "—"}
+                  <br />
+                  {product.barcodeType}
+                </small>
+              </td>
               <td>{product.stockQuantity}</td>
               <td>
-                <form action={adjustStock} style={{ display: "flex", gap: 8 }}>
+                <form action={adjustStock} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <input type="hidden" name="productId" value={product.id} />
                   <input
                     name="delta"
                     type="number"
                     placeholder="+5 / -2"
-                    style={{ border: "1px solid var(--line)", borderRadius: 6, padding: "6px 10px", width: 90 }}
+                    style={{
+                      border: "1px solid var(--line)",
+                      borderRadius: 6,
+                      padding: "6px 10px",
+                      width: 90,
+                    }}
                   />
                   <input
                     name="reason"
                     placeholder="Reason"
-                    style={{ border: "1px solid var(--line)", borderRadius: 6, padding: "6px 10px", width: 160 }}
+                    style={{
+                      border: "1px solid var(--line)",
+                      borderRadius: 6,
+                      padding: "6px 10px",
+                      width: 180,
+                    }}
                   />
-                  <button className="secondary-button" type="submit" style={{ minHeight: 34, padding: "0 14px" }}>
+                  <button
+                    className="secondary-button"
+                    type="submit"
+                    style={{ minHeight: 34, padding: "0 14px" }}
+                  >
                     Apply
                   </button>
                 </form>
@@ -75,22 +106,37 @@ export default async function AdminInventoryPage() {
             <th>Product</th>
             <th>Change</th>
             <th>Reason</th>
+            <th>By</th>
           </tr>
         </thead>
         <tbody>
           {recent.map((adj) => (
             <tr key={adj.id}>
-              <td>{adj.createdAt.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</td>
+              <td>
+                {adj.createdAt.toLocaleString("en-IN", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
+              </td>
               <td>{adj.product.title}</td>
               <td style={{ color: adj.delta < 0 ? "var(--rose)" : "var(--gold)", fontWeight: 800 }}>
                 {adj.delta > 0 ? `+${adj.delta}` : adj.delta}
               </td>
-              <td>{adj.reason}</td>
+              <td>
+                {adj.reason}
+                {adj.source ? (
+                  <>
+                    <br />
+                    <small style={{ color: "var(--muted)" }}>{adj.source.replace(/_/g, " ")}</small>
+                  </>
+                ) : null}
+              </td>
+              <td>{adj.admin?.name ?? "System"}</td>
             </tr>
           ))}
           {!recent.length ? (
             <tr>
-              <td colSpan={4} style={{ color: "var(--muted)" }}>
+              <td colSpan={5} style={{ color: "var(--muted)" }}>
                 No adjustments yet.
               </td>
             </tr>

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
+import { generateProductBarcodeValue, normalizeBarcodeValue } from "@/lib/barcode";
 import { slugify } from "@/lib/format";
 
 function str(formData: FormData, key: string): string {
@@ -144,7 +145,10 @@ export async function saveProduct(formData: FormData) {
     description: optional(formData, "description"),
     price: num(formData, "price"),
     compareAtPrice: optional(formData, "compareAtPrice") ? num(formData, "compareAtPrice") : null,
+    purchaseCost: optional(formData, "purchaseCost") ? num(formData, "purchaseCost") : null,
     sku: optional(formData, "sku"),
+    barcodeValue: null as string | null,
+    barcodeType: (str(formData, "barcodeType") || "code39") as "code39" | "code128" | "qr",
     stockQuantity: num(formData, "stockQuantity"),
     lowStockThreshold: num(formData, "lowStockThreshold", 3),
     categoryId: optional(formData, "categoryId"),
@@ -169,6 +173,9 @@ export async function saveProduct(formData: FormData) {
     seoTitle: optional(formData, "seoTitle"),
     seoDescription: optional(formData, "seoDescription"),
   };
+  data.barcodeValue =
+    normalizeBarcodeValue(optional(formData, "barcodeValue") || "") ||
+    generateProductBarcodeValue({ sku: data.sku, title: data.title });
 
   let productId: string;
   if (id) {

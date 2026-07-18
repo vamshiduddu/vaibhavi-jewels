@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { formatINR } from "@/lib/format";
 
@@ -17,6 +18,7 @@ const STATUS_FILTERS = [
 type Props = { searchParams: Promise<{ status?: string }> };
 
 export default async function AdminOrdersPage({ searchParams }: Props) {
+  await requireAdmin("orders");
   const { status } = await searchParams;
   const filter = STATUS_FILTERS.includes(status as (typeof STATUS_FILTERS)[number])
     ? status
