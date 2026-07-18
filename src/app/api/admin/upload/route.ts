@@ -10,11 +10,16 @@ export async function POST(request: Request) {
 
   const formData = await request.formData();
   const file = formData.get("file");
+  const folder = String(formData.get("folder") ?? "").trim();
+  const entityLabel = String(formData.get("entityLabel") ?? "").trim().toUpperCase();
   if (!(file instanceof File)) {
     return NextResponse.json({ ok: false, error: "No file received." }, { status: 400 });
   }
 
-  const result = await uploadProductImage(file);
+  const result = await uploadProductImage(file, {
+    folder: folder || "products",
+    watermarkText: entityLabel || null,
+  });
   if (!result.ok) {
     return NextResponse.json(result, { status: 400 });
   }

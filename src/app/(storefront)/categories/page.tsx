@@ -23,7 +23,20 @@ export default async function CategoriesPage() {
         <div className="category-grid">
           {categories.map((category) => (
             <Link key={category.id} href={`/categories/${category.slug}`}>
-              {category.name} <span>See more</span>
+              {category.image ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    className="category-card-media"
+                    src={category.image}
+                    alt={category.name}
+                  />
+                  <strong className="category-card-label">{category.name}</strong>
+                </>
+              ) : (
+                <strong className="category-card-label">{category.name}</strong>
+              )}
+              <span>See more</span>
             </Link>
           ))}
         </div>

@@ -12,10 +12,16 @@ export default function ProductGallery({ media, title }: { media: MediaItem[]; t
   const current = items[Math.min(index, items.length - 1)];
 
   const prev = useCallback(
-    () => setIndex((i) => (i - 1 + items.length) % items.length),
+    () => {
+      setZoomed(false);
+      setIndex((i) => (i - 1 + items.length) % items.length);
+    },
     [items.length],
   );
-  const next = useCallback(() => setIndex((i) => (i + 1) % items.length), [items.length]);
+  const next = useCallback(() => {
+    setZoomed(false);
+    setIndex((i) => (i + 1) % items.length);
+  }, [items.length]);
 
   useEffect(() => {
     if (!lightbox) return;
@@ -31,8 +37,6 @@ export default function ProductGallery({ media, title }: { media: MediaItem[]; t
       document.body.style.overflow = "";
     };
   }, [lightbox, prev, next]);
-
-  useEffect(() => setZoomed(false), [index, lightbox]);
 
   const currentEmbed = current.kind === "video" ? embedUrl(current.url) : null;
 
@@ -55,7 +59,10 @@ export default function ProductGallery({ media, title }: { media: MediaItem[]; t
             <button
               type="button"
               className="gallery-zoom"
-              onClick={() => setLightbox(true)}
+              onClick={() => {
+                setZoomed(false);
+                setLightbox(true);
+              }}
               aria-label="Zoom image"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -87,7 +94,10 @@ export default function ProductGallery({ media, title }: { media: MediaItem[]; t
                 type="button"
                 key={`${item.url}-${i}`}
                 className={i === index ? "active" : undefined}
-                onClick={() => setIndex(i)}
+                onClick={() => {
+                  setZoomed(false);
+                  setIndex(i);
+                }}
                 aria-label={item.kind === "video" ? `Video ${i + 1}` : `Image ${i + 1}`}
               >
                 {thumb ? (
@@ -104,11 +114,22 @@ export default function ProductGallery({ media, title }: { media: MediaItem[]; t
       ) : null}
 
       {lightbox && current.kind === "image" ? (
-        <div className="lightbox" onClick={() => setLightbox(false)} role="dialog" aria-label="Image zoom">
+        <div
+          className="lightbox"
+          onClick={() => {
+            setZoomed(false);
+            setLightbox(false);
+          }}
+          role="dialog"
+          aria-label="Image zoom"
+        >
           <button
             type="button"
             className="lightbox-close"
-            onClick={() => setLightbox(false)}
+            onClick={() => {
+              setZoomed(false);
+              setLightbox(false);
+            }}
             aria-label="Close"
           >
             ✕

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
-import type { AdminRole, OfflinePaymentMethod } from "@prisma/client";
+import type { AdminRole, OfflinePaymentMethod, PaymentStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { effectivePrice, getActivePromotions } from "@/lib/pricing";
@@ -158,6 +158,167 @@ export async function createOfflineSale(formData: FormData) {
   ]);
 
   revalidatePath("/admin/offline-sales");
+  revalidatePath("/admin/inventory");
+  revalidatePath("/admin");
+}
+
+function normalizeD2cSource(source: string): "manual_admin" | "whatsapp_order" {
+  return source === "whatsapp" ? "whatsapp_order" : "manual_admin";
+}
+
+function normalizeOrderStatus(paymentStatus: string): "paid" | "payment_pending" | "pending" {
+  if (paymentStatus === "paid") return "paid";
+  if (paymentStatus === "payment_pending") return "payment_pending";
+  return "pending";
+}
+
+function normalizePaymentStatus(paymentStatus: string): PaymentStatus {
+  if (paymentStatus === "paid") return "paid";
+  if (paymentStatus === "failed") return "failed";
+  return "initiated";
+}
+
+export async function createSocialMediaSale(formData: FormData) {
+  const session = await requireAdmin("offline-sales");
+  const productId = str(formData, "productId");
+  const quantity = num(formData, "quantity", 1);
+  const sourceType = str(formData, "sourceType") || "other";
+  const paymentStatus = str(formData, "paymentStatus") || "payment_pending";
+  const shippingTotal = Math.max(0, num(formData, "shippingTotal"));
+  const manualDiscount = Math.max(0, num(formData, "discountTotal"));
+  const customerName = str(formData, "customerName");
+  const phone = str(formData, "phone");
+  const line1 = str(formData, "line1");
+  const city = str(formData, "city");
+  const state = str(formData, "state");
+  const pincode = str(formData, "pincode");
+  const country = str(formData, "country") || "India";
+
+  if (!productId || quantity < 1) return;
+  if (!customerName || !phone || !line1 || !city || !state || !pincode) {
+    throw new Error("Customer address and contact details are required.");
+  }
+
+  const [product, promotions] = await Promise.all([
+    db.product.findUnique({
+      where: { id: productId },
+      include: {
+        images: {
+          where: { kind: "image" },
+          orderBy: [{ featured: "desc" }, { sortOrder: "asc" }],
+          take: 1,
+        },
+      },
+    }),
+    getActivePromotions(),
+  ]);
+  if (!product) throw new Error("Product not found.");
+  if (product.stockQuantity < quantity) {
+    throw new Error(`Only ${product.stockQuantity} left for ${product.title}.`);
+  }
+
+  const pricing = effectivePrice(product, promotions);
+  const subtotal = Number((pricing.price * quantity).toFixed(2));
+  const discountTotal = Math.min(manualDiscount, subtotal);
+  const grandTotal = Number((subtotal - discountTotal + shippingTotal).toFixed(2));
+  const orderStatus = normalizeOrderStatus(paymentStatus);
+  const normalizedSource = normalizeD2cSource(sourceType);
+  const noteParts = [
+    "D2C social media sale",
+    `source=${sourceType}`,
+    optional(formData, "notes"),
+  ].filter(Boolean);
+
+  await db.$transaction(async (tx) => {
+    const customer = await tx.customer.upsert({
+      where: { phone },
+      update: {
+        name: customerName,
+        email: optional(formData, "email")?.toLowerCase() ?? undefined,
+      },
+      create: {
+        name: customerName,
+        phone,
+        email: optional(formData, "email")?.toLowerCase() ?? null,
+      },
+    });
+
+    const address = await tx.address.create({
+      data: {
+        customerId: customer.id,
+        name: customerName,
+        phone,
+        line1,
+        line2: optional(formData, "line2"),
+        city,
+        state,
+        pincode,
+        country,
+      },
+    });
+
+    const order = await tx.order.create({
+      data: {
+        orderNumber: orderNumber(),
+        customerId: customer.id,
+        addressId: address.id,
+        email: optional(formData, "email")?.toLowerCase() ?? null,
+        phone,
+        customerName,
+        status: orderStatus,
+        source: normalizedSource,
+        subtotal,
+        discountTotal,
+        shippingTotal,
+        grandTotal,
+        internalNotes: noteParts.join(" | "),
+        items: {
+          create: {
+            productId: product.id,
+            title: product.title,
+            sku: product.sku,
+            unitPrice: pricing.price,
+            quantity,
+            lineTotal: subtotal,
+            imageUrl: product.images[0]?.url ?? null,
+          },
+        },
+      },
+    });
+
+    await tx.payment.create({
+      data: {
+        orderId: order.id,
+        provider: "manual_d2c",
+        amount: grandTotal,
+        currency: "INR",
+        status: normalizePaymentStatus(paymentStatus),
+        rawPayload: {
+          sourceType,
+          paymentStatus,
+        },
+      },
+    });
+
+    await tx.product.update({
+      where: { id: product.id },
+      data: { stockQuantity: { decrement: quantity } },
+    });
+
+    await tx.stockAdjustment.create({
+      data: {
+        productId: product.id,
+        delta: -quantity,
+        reason: `D2C social sale ${order.orderNumber} (${sourceType})`,
+        adminId: session.sub,
+        source: "social_sale",
+      },
+    });
+  });
+
+  revalidatePath("/admin/offline-sales");
+  revalidatePath("/admin/orders");
+  revalidatePath("/admin/customers");
   revalidatePath("/admin/inventory");
   revalidatePath("/admin");
 }

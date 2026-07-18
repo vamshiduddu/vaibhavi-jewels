@@ -31,6 +31,12 @@ function slugFrom(formData: FormData, nameKey = "name"): string {
   return slugify(explicit || str(formData, nameKey));
 }
 
+function defaultSeoDescription(shortDescription: string | null, description: string | null): string | null {
+  if (shortDescription) return shortDescription;
+  if (!description) return null;
+  return description.replace(/\s+/g, " ").trim().slice(0, 160) || null;
+}
+
 async function generateUniqueSku(title: string): Promise<string> {
   const titlePart = slugify(title)
     .replace(/-/g, "")
@@ -59,6 +65,7 @@ async function generateUniqueSku(title: string): Promise<string> {
 export async function saveCategory(formData: FormData) {
   await requireAdmin("catalog");
   const id = optional(formData, "id");
+  const redirectTo = optional(formData, "redirectTo") ?? "/admin/categories";
   const data = {
     name: str(formData, "name"),
     slug: slugFrom(formData),
@@ -74,17 +81,19 @@ export async function saveCategory(formData: FormData) {
   } else {
     await db.category.create({ data });
   }
-  revalidateTag(CACHE_TAGS.catalog);
+  revalidateTag(CACHE_TAGS.catalog, "max");
   revalidatePath("/admin/categories");
-  redirect("/admin/categories");
+  redirect(redirectTo);
 }
 
 export async function deleteCategory(formData: FormData) {
   await requireAdmin("catalog");
   const id = str(formData, "id");
+  const redirectTo = optional(formData, "redirectTo") ?? "/admin/categories";
   await db.category.delete({ where: { id } });
-  revalidateTag(CACHE_TAGS.catalog);
+  revalidateTag(CACHE_TAGS.catalog, "max");
   revalidatePath("/admin/categories");
+  redirect(redirectTo);
 }
 
 // ---------- Subcategories ----------
@@ -92,6 +101,7 @@ export async function deleteCategory(formData: FormData) {
 export async function saveSubcategory(formData: FormData) {
   await requireAdmin("catalog");
   const id = optional(formData, "id");
+  const redirectTo = optional(formData, "redirectTo") ?? "/admin/categories";
   const data = {
     categoryId: str(formData, "categoryId"),
     name: str(formData, "name"),
@@ -105,16 +115,20 @@ export async function saveSubcategory(formData: FormData) {
   } else {
     await db.subcategory.create({ data });
   }
-  revalidateTag(CACHE_TAGS.catalog);
+  revalidateTag(CACHE_TAGS.catalog, "max");
+  revalidatePath("/admin/categories");
   revalidatePath("/admin/subcategories");
-  redirect("/admin/subcategories");
+  redirect(redirectTo);
 }
 
 export async function deleteSubcategory(formData: FormData) {
   await requireAdmin("catalog");
+  const redirectTo = optional(formData, "redirectTo") ?? "/admin/categories";
   await db.subcategory.delete({ where: { id: str(formData, "id") } });
-  revalidateTag(CACHE_TAGS.catalog);
+  revalidateTag(CACHE_TAGS.catalog, "max");
+  revalidatePath("/admin/categories");
   revalidatePath("/admin/subcategories");
+  redirect(redirectTo);
 }
 
 // ---------- Collections ----------
@@ -138,7 +152,7 @@ export async function saveCollection(formData: FormData) {
   } else {
     await db.collection.create({ data });
   }
-  revalidateTag(CACHE_TAGS.catalog);
+  revalidateTag(CACHE_TAGS.catalog, "max");
   revalidatePath("/admin/collections");
   redirect("/admin/collections");
 }
@@ -146,7 +160,7 @@ export async function saveCollection(formData: FormData) {
 export async function deleteCollection(formData: FormData) {
   await requireAdmin("catalog");
   await db.collection.delete({ where: { id: str(formData, "id") } });
-  revalidateTag(CACHE_TAGS.catalog);
+  revalidateTag(CACHE_TAGS.catalog, "max");
   revalidatePath("/admin/collections");
 }
 
@@ -204,6 +218,8 @@ export async function saveProduct(formData: FormData) {
     seoTitle: optional(formData, "seoTitle"),
     seoDescription: optional(formData, "seoDescription"),
   };
+  data.seoTitle = data.seoTitle || data.title;
+  data.seoDescription = data.seoDescription || defaultSeoDescription(data.shortDescription, data.description);
   data.sku = rawSku || (await generateUniqueSku(data.title));
   data.barcodeValue =
     normalizeBarcodeValue(optional(formData, "barcodeValue") || "") ||
@@ -234,7 +250,7 @@ export async function saveProduct(formData: FormData) {
     });
   }
 
-  revalidateTag(CACHE_TAGS.catalog);
+  revalidateTag(CACHE_TAGS.catalog, "max");
   revalidatePath("/admin/products");
   redirect("/admin/products");
 }
@@ -245,7 +261,7 @@ export async function archiveProduct(formData: FormData) {
     where: { id: str(formData, "id") },
     data: { status: "archived" },
   });
-  revalidateTag(CACHE_TAGS.catalog);
+  revalidateTag(CACHE_TAGS.catalog, "max");
   revalidatePath("/admin/products");
 }
 

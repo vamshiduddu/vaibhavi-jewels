@@ -23,6 +23,12 @@ export default async function SiteFooter() {
         </div>
         <div>
           <strong>Help</strong>
+          <Link href="/about-us">About Us</Link>
+          <Link href="/privacy-policy">Privacy Policy</Link>
+          <Link href="/terms-and-conditions">Terms & Conditions</Link>
+          <Link href="/shipping-and-delivery">Shipping & Delivery</Link>
+          <Link href="/return-exchange">Return & Exchange</Link>
+          <Link href="/maintenance">Maintenance</Link>
           <Link href="/account/orders">Track Order</Link>
           {settings.instagram_url ? (
             <a href={settings.instagram_url} target="_blank" rel="noreferrer">

@@ -26,10 +26,10 @@ export async function renderBarcodeSvg(
     bcid,
     text: value,
     scale: type === "qr" ? 4 : 2,
-    height: type === "qr" ? undefined : 12,
     includetext: true,
     textxalign: "center",
     backgroundcolor: "FFFFFF",
+    ...(type === "qr" ? {} : { height: 12 }),
   });
   return svg;
 }

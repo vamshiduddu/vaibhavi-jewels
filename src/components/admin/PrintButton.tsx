@@ -5,9 +5,11 @@ type Props = {
   sheetId: string;
   className?: string;
   title?: string;
+  disabled?: boolean;
+  variant?: "barcode" | "shipping";
 };
 
-const PRINT_CSS = `
+const BARCODE_PRINT_CSS = `
   @page { margin: 4mm; size: auto; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #fff; color: #111; font-family: Inter, Arial, sans-serif; }
@@ -91,12 +93,90 @@ const PRINT_CSS = `
   }
 `;
 
-export default function PrintButton({ children, sheetId, className, title }: Props) {
+const SHIPPING_PRINT_CSS = `
+  @page { margin: 4mm; size: auto; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #fff; color: #111; font-family: Inter, Arial, sans-serif; }
+  .print-root { padding: 0; }
+  .shipping-print-sheet {
+    display: grid;
+    gap: 3mm;
+    grid-template-columns: repeat(auto-fill, minmax(100mm, 100mm));
+    align-content: start;
+  }
+  .shipping-print-card {
+    width: 100mm;
+    min-height: 150mm;
+    border: 0.3mm solid #111;
+    border-radius: 2mm;
+    display: grid;
+    gap: 2.2mm;
+    padding: 4mm;
+    break-inside: avoid;
+    background: #fff;
+  }
+  .shipping-print-top,
+  .shipping-print-meta,
+  .shipping-print-bottom {
+    display: flex;
+    justify-content: space-between;
+    gap: 2mm;
+    align-items: center;
+  }
+  .shipping-print-order {
+    font-size: 5mm;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+  .shipping-print-paid {
+    border: 0.3mm solid #111;
+    border-radius: 999px;
+    font-size: 3.2mm;
+    font-weight: 700;
+    padding: 0.8mm 2.4mm;
+  }
+  .shipping-print-name {
+    font-size: 6mm;
+    font-weight: 800;
+    line-height: 1.15;
+  }
+  .shipping-print-phone {
+    font-size: 4.2mm;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .shipping-print-address {
+    display: grid;
+    gap: 1.4mm;
+    font-size: 4.4mm;
+    line-height: 1.32;
+    padding: 2mm 0;
+    border-top: 0.3mm dashed #999;
+    border-bottom: 0.3mm dashed #999;
+  }
+  .shipping-print-meta,
+  .shipping-print-bottom {
+    font-size: 3.5mm;
+    color: #333;
+    line-height: 1.2;
+  }
+`;
+
+export default function PrintButton({
+  children,
+  sheetId,
+  className,
+  title,
+  disabled = false,
+  variant = "barcode",
+}: Props) {
   return (
     <button
       type="button"
       className={className}
+      disabled={disabled}
       onClick={() => {
+        if (disabled) return;
         const source = document.getElementById(sheetId);
         if (!source) return;
         const frame = document.createElement("iframe");
@@ -124,7 +204,7 @@ export default function PrintButton({ children, sheetId, className, title }: Pro
               <meta charset="utf-8" />
               <meta name="viewport" content="width=device-width, initial-scale=1" />
               <title>${title || "Barcode Labels"}</title>
-              <style>${PRINT_CSS}</style>
+              <style>${variant === "shipping" ? SHIPPING_PRINT_CSS : BARCODE_PRINT_CSS}</style>
             </head>
             <body>
               <div class="print-root">${source.outerHTML}</div>

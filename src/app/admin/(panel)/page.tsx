@@ -19,6 +19,7 @@ const FULFILMENT_STATUSES = [
   "packed",
   "shipped",
 ] as const;
+const ONLINE_ORDER_SOURCES = ["online_store"] as const;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 type DashboardSearchParams = Promise<{
@@ -166,7 +167,7 @@ export default async function AdminDashboard({
     db.order.findMany({
       select: { status: true, grandTotal: true, source: true },
     }),
-    db.order.groupBy({ by: ["status"], _count: { _all: true } }),
+    db.order.groupBy({ by: ["status"], where: { createdAt: rangeWhere }, _count: { _all: true } }),
     db.offlineSale.findMany({
       where: { createdAt: rangeWhere },
       select: { createdAt: true, grandTotal: true },
@@ -212,6 +213,7 @@ export default async function AdminDashboard({
       select: { id: true, title: true, stockQuantity: true },
     }),
     db.order.findMany({
+      where: { createdAt: rangeWhere },
       orderBy: { createdAt: "desc" },
       take: 7,
       include: { items: { select: { quantity: true } } },
@@ -223,44 +225,57 @@ export default async function AdminDashboard({
 
   const revenueStatusSet = new Set<string>(REVENUE_STATUSES);
   const fulfilmentStatusSet = new Set<string>(FULFILMENT_STATUSES);
+  const onlineSourceSet = new Set<string>(ONLINE_ORDER_SOURCES);
 
   const selectedOnlineRevenue = sumTotals(
-    ordersInRange.filter((order) => revenueStatusSet.has(order.status)),
+    ordersInRange.filter((order) => revenueStatusSet.has(order.status) && onlineSourceSet.has(order.source)),
     (order) => toNumber(order.grandTotal),
   );
-  const selectedOfflineRevenue = sumTotals(offlineSalesInRange, (sale) => toNumber(sale.grandTotal));
+  const selectedD2cRevenue =
+    sumTotals(
+      ordersInRange.filter((order) => revenueStatusSet.has(order.status) && !onlineSourceSet.has(order.source)),
+      (order) => toNumber(order.grandTotal),
+    ) + sumTotals(offlineSalesInRange, (sale) => toNumber(sale.grandTotal));
   const previousOnlineRevenue = sumTotals(
-    previousOrders.filter((order) => revenueStatusSet.has(order.status)),
+    previousOrders.filter((order) => revenueStatusSet.has(order.status) && onlineSourceSet.has(order.source)),
     (order) => toNumber(order.grandTotal),
   );
-  const previousOfflineRevenue = sumTotals(previousOfflineSales, (sale) => toNumber(sale.grandTotal));
+  const previousD2cRevenue =
+    sumTotals(
+      previousOrders.filter((order) => revenueStatusSet.has(order.status) && !onlineSourceSet.has(order.source)),
+      (order) => toNumber(order.grandTotal),
+    ) + sumTotals(previousOfflineSales, (sale) => toNumber(sale.grandTotal));
 
-  const selectedOnlineOrders = ordersInRange.length;
-  const selectedOfflineOrders = offlineSalesInRange.length;
-  const previousOnlineOrders = previousOrders.length;
-  const previousOfflineOrders = previousOfflineSales.length;
+  const selectedOnlineOrders = ordersInRange.filter((order) => onlineSourceSet.has(order.source)).length;
+  const selectedD2cOrders =
+    ordersInRange.filter((order) => !onlineSourceSet.has(order.source)).length + offlineSalesInRange.length;
+  const previousOnlineOrders = previousOrders.filter((order) => onlineSourceSet.has(order.source)).length;
+  const previousD2cOrders =
+    previousOrders.filter((order) => !onlineSourceSet.has(order.source)).length + previousOfflineSales.length;
 
   const allOnlineRevenue = sumTotals(
-    allOrders.filter((order) => revenueStatusSet.has(order.status)),
+    allOrders.filter((order) => revenueStatusSet.has(order.status) && onlineSourceSet.has(order.source)),
     (order) => toNumber(order.grandTotal),
   );
-  const allOfflineRevenue = sumTotals(allOfflineSales, (sale) => toNumber(sale.grandTotal));
-  const allOnlineOrders = allOrders.length;
-  const allOfflineOrders = allOfflineSales.length;
+  const allD2cRevenue =
+    sumTotals(
+      allOrders.filter((order) => revenueStatusSet.has(order.status) && !onlineSourceSet.has(order.source)),
+      (order) => toNumber(order.grandTotal),
+    ) + sumTotals(allOfflineSales, (sale) => toNumber(sale.grandTotal));
+  const allOnlineOrders = allOrders.filter((order) => onlineSourceSet.has(order.source)).length;
+  const allD2cOrders = allOrders.filter((order) => !onlineSourceSet.has(order.source)).length + allOfflineSales.length;
 
-  const selectedCombinedRevenue = selectedOnlineRevenue + selectedOfflineRevenue;
-  const previousCombinedRevenue = previousOnlineRevenue + previousOfflineRevenue;
-  const allCombinedRevenue = allOnlineRevenue + allOfflineRevenue;
-  const selectedCombinedOrders = selectedOnlineOrders + selectedOfflineOrders;
-  const previousCombinedOrders = previousOnlineOrders + previousOfflineOrders;
-  const allCombinedOrders = allOnlineOrders + allOfflineOrders;
+  const selectedCombinedRevenue = selectedOnlineRevenue + selectedD2cRevenue;
+  const previousCombinedRevenue = previousOnlineRevenue + previousD2cRevenue;
+  const allCombinedRevenue = allOnlineRevenue + allD2cRevenue;
+  const selectedCombinedOrders = selectedOnlineOrders + selectedD2cOrders;
+  const previousCombinedOrders = previousOnlineOrders + previousD2cOrders;
+  const allCombinedOrders = allOnlineOrders + allD2cOrders;
   const selectedAverageOrderValue = selectedCombinedOrders
     ? selectedCombinedRevenue / selectedCombinedOrders
     : 0;
 
-  const toFulfil = statusGroups
-    .filter((group) => fulfilmentStatusSet.has(group.status))
-    .reduce((total, group) => total + group._count._all, 0);
+  const toFulfil = ordersInRange.filter((order) => fulfilmentStatusSet.has(order.status)).length;
 
   const revenueByDay = new Map<string, number>();
   const ordersByDay = new Map<string, number>();
@@ -359,7 +374,7 @@ export default async function AdminDashboard({
         <div>
           <h1>Dashboard</h1>
           <p className="admin-header-note">
-            Revenue and orders for {rangeConfig.label.toLowerCase()} with all-time reference totals.
+            Revenue and orders for {rangeConfig.label.toLowerCase()} with source-aware D2C vs online totals.
           </p>
         </div>
         <form method="get" className="dashboard-filters">
@@ -446,12 +461,12 @@ export default async function AdminDashboard({
         </div>
 
         <div className="stat-card">
-          <span>Offline Revenue</span>
-          <strong>{formatINR(Math.round(selectedOfflineRevenue))}</strong>
+          <span>D2C Revenue</span>
+          <strong>{formatINR(Math.round(selectedD2cRevenue))}</strong>
           <div className="stat-foot">
-            <span className="stat-delta">{selectedOfflineOrders} offline bills in range</span>
+            <span className="stat-delta">{selectedD2cOrders} D2C orders in range</span>
           </div>
-          <div className="stat-subline">All time {formatINR(Math.round(allOfflineRevenue))}</div>
+          <div className="stat-subline">All time {formatINR(Math.round(allD2cRevenue))}</div>
         </div>
 
         <div className="stat-card">
@@ -463,10 +478,10 @@ export default async function AdminDashboard({
         </div>
 
         <div className="stat-card">
-          <span>Offline Orders</span>
-          <strong>{selectedOfflineOrders}</strong>
+          <span>D2C Orders</span>
+          <strong>{selectedD2cOrders}</strong>
           <div className="stat-foot">
-            <span className="stat-delta">All time {allOfflineOrders}</span>
+            <span className="stat-delta">All time {allD2cOrders}</span>
           </div>
         </div>
 
@@ -483,7 +498,7 @@ export default async function AdminDashboard({
           <strong>{toFulfil}</strong>
           <div className="stat-foot">
             <span className="stat-delta">
-              Includes pending, payment pending, paid, processing, packed, and shipped orders
+              Includes pending, payment pending, paid, processing, packed, and shipped orders in range
             </span>
           </div>
           <div className="stat-subline">
@@ -496,14 +511,14 @@ export default async function AdminDashboard({
         <div className="chart-card">
           <div className="chart-card-head">
             <h3>Revenue Trend</h3>
-            <span>online paid plus offline sales</span>
+            <span>online paid plus D2C sales</span>
           </div>
           <AreaChart data={revenueSeries} color={CHART_COLORS[0]} currency />
         </div>
         <div className="chart-card">
           <div className="chart-card-head">
             <h3>Order Status</h3>
-            <span>all time</span>
+            <span>{rangeConfig.label.toLowerCase()}</span>
           </div>
           <HBarChart data={statusData} colors={statusColors} />
         </div>
@@ -513,7 +528,7 @@ export default async function AdminDashboard({
         <div className="chart-card">
           <div className="chart-card-head">
             <h3>Orders Per Day</h3>
-            <span>online orders plus offline bills</span>
+            <span>online orders plus D2C sales</span>
           </div>
           <BarChart data={orderSeries} color={CHART_COLORS[1]} />
         </div>
@@ -530,7 +545,7 @@ export default async function AdminDashboard({
         <div className="chart-card">
           <div className="chart-card-head">
             <h3>Top Products</h3>
-            <span>combined online and offline revenue</span>
+            <span>combined online and D2C revenue</span>
           </div>
           {topProducts.length ? (
             <table className="admin-table">
@@ -602,6 +617,7 @@ export default async function AdminDashboard({
       <div className="chart-card">
         <div className="chart-card-head">
           <h3>Recent Orders</h3>
+          <span>{rangeConfig.label.toLowerCase()}</span>
           <Link href="/admin/orders">View all</Link>
         </div>
         <table className="admin-table">

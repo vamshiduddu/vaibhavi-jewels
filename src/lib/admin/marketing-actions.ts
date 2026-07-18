@@ -66,7 +66,7 @@ export async function savePromotion(formData: FormData) {
   } else {
     await db.promotion.create({ data });
   }
-  revalidateTag(CACHE_TAGS.promotions);
+  revalidateTag(CACHE_TAGS.promotions, "max");
   revalidatePath("/admin/promotions");
   redirect("/admin/promotions");
 }
@@ -74,7 +74,7 @@ export async function savePromotion(formData: FormData) {
 export async function deletePromotion(formData: FormData) {
   await requireAdmin("promotions");
   await db.promotion.delete({ where: { id: str(formData, "id") } });
-  revalidateTag(CACHE_TAGS.promotions);
+  revalidateTag(CACHE_TAGS.promotions, "max");
   revalidatePath("/admin/promotions");
 }
 
@@ -100,7 +100,7 @@ export async function saveCoupon(formData: FormData) {
   } else {
     await db.coupon.create({ data });
   }
-  revalidateTag(CACHE_TAGS.promotions);
+  revalidateTag(CACHE_TAGS.promotions, "max");
   revalidatePath("/admin/coupons");
   redirect("/admin/coupons");
 }
@@ -108,7 +108,7 @@ export async function saveCoupon(formData: FormData) {
 export async function deleteCoupon(formData: FormData) {
   await requireAdmin("promotions");
   await db.coupon.delete({ where: { id: str(formData, "id") } });
-  revalidateTag(CACHE_TAGS.promotions);
+  revalidateTag(CACHE_TAGS.promotions, "max");
   revalidatePath("/admin/coupons");
 }
 
@@ -133,7 +133,7 @@ export async function saveBanner(formData: FormData) {
   } else {
     await db.banner.create({ data });
   }
-  revalidateTag(CACHE_TAGS.banners);
+  revalidateTag(CACHE_TAGS.banners, "max");
   revalidatePath("/admin/content");
   revalidatePath("/");
   redirect("/admin/content");
@@ -142,7 +142,7 @@ export async function saveBanner(formData: FormData) {
 export async function deleteBanner(formData: FormData) {
   await requireAdmin("content");
   await db.banner.delete({ where: { id: str(formData, "id") } });
-  revalidateTag(CACHE_TAGS.banners);
+  revalidateTag(CACHE_TAGS.banners, "max");
   revalidatePath("/admin/content");
   revalidatePath("/");
 }
@@ -167,7 +167,7 @@ export async function saveSection(formData: FormData) {
     create: { key, ...data },
     update: data,
   });
-  revalidateTag(CACHE_TAGS.sections);
+  revalidateTag(CACHE_TAGS.sections, "max");
   revalidatePath("/admin/content");
   revalidatePath("/");
 }
@@ -186,7 +186,7 @@ export async function saveSettings(formData: FormData) {
       update: { value: String(value) },
     });
   }
-  revalidateTag(CACHE_TAGS.settings);
+  revalidateTag(CACHE_TAGS.settings, "max");
   revalidatePath("/admin/settings");
   revalidatePath("/");
 }

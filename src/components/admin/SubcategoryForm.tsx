@@ -1,20 +1,28 @@
 import type { Category, Subcategory } from "@prisma/client";
+import ImageUploadField from "@/components/admin/ImageUploadField";
 import { saveSubcategory } from "@/lib/admin/catalog-actions";
 
 export default function SubcategoryForm({
   subcategory,
   categories,
+  defaultCategoryId,
+  redirectTo = "/admin/categories",
+  submitLabel = "Save Subcategory",
 }: {
   subcategory?: Subcategory | null;
   categories: Category[];
+  defaultCategoryId?: string | null;
+  redirectTo?: string;
+  submitLabel?: string;
 }) {
   return (
     <form action={saveSubcategory} className="admin-form">
       {subcategory ? <input type="hidden" name="id" value={subcategory.id} /> : null}
+      <input type="hidden" name="redirectTo" value={redirectTo} />
       <div className="form-row-2">
         <label>
           Parent Category
-          <select name="categoryId" required defaultValue={subcategory?.categoryId ?? ""}>
+          <select name="categoryId" required defaultValue={subcategory?.categoryId ?? defaultCategoryId ?? ""}>
             <option value="" disabled>
               Select a category
             </option>
@@ -40,6 +48,18 @@ export default function SubcategoryForm({
           <input name="sortOrder" type="number" defaultValue={subcategory?.sortOrder ?? 0} />
         </label>
       </div>
+      <ImageUploadField
+        name="image"
+        initialUrl={subcategory?.image ?? null}
+        label="Subcategory Banner"
+        helpText="Upload the banner image for this subcategory."
+        uploadContext={{
+          folder: subcategory?.id ? `subcategories/${subcategory.id}` : "subcategories/draft",
+          entityType: "subcategory",
+          entityId: subcategory?.id ?? null,
+          entityLabel: null,
+        }}
+      />
       <label>
         Description
         <textarea name="description" defaultValue={subcategory?.description ?? ""} />
@@ -49,7 +69,7 @@ export default function SubcategoryForm({
         Active
       </label>
       <button className="primary-button" type="submit" style={{ width: "fit-content" }}>
-        Save Subcategory
+        {submitLabel}
       </button>
     </form>
   );

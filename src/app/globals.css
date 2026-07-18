@@ -218,6 +218,10 @@ button {
   display: none;
 }
 
+.nav-item {
+  position: relative;
+}
+
 .nav-strip a {
   color: var(--muted);
   font-size: 12px;
@@ -229,6 +233,56 @@ button {
 
 .nav-strip a:hover {
   color: var(--maroon);
+}
+
+.nav-panel {
+  background: #fffdf8;
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 10px;
+  left: 50%;
+  min-width: 220px;
+  opacity: 0;
+  padding: 16px;
+  pointer-events: none;
+  position: absolute;
+  top: calc(100% + 10px);
+  transform: translateX(-50%) translateY(10px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 12;
+}
+
+.nav-panel a {
+  letter-spacing: 0.06em;
+}
+
+.nav-panel-categories {
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
+  min-width: 680px;
+}
+
+.nav-panel-group {
+  display: grid;
+  gap: 8px;
+}
+
+.nav-panel-group > a:first-child {
+  color: var(--maroon);
+  font-weight: 700;
+}
+
+.nav-panel-sub {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.nav-item-has-panel:hover .nav-panel,
+.nav-item-has-panel:focus-within .nav-panel {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
 }
 
 /* ---------- Buttons ---------- */
@@ -504,7 +558,7 @@ h3 {
 
 .product-card .product-card-body {
   display: grid;
-  gap: 2px;
+  gap: 8px;
   padding: 12px 14px 16px;
 }
 
@@ -559,6 +613,51 @@ h3 {
   color: var(--gold);
   font-size: 11.5px;
   font-weight: 700;
+}
+
+.product-card-actions {
+  margin-top: 4px;
+}
+
+.product-card-actions .primary-button {
+  min-height: 38px;
+  width: 100%;
+}
+
+.product-grid-dense {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.catalog-hero {
+  display: grid;
+  gap: 18px;
+  margin: 0 auto;
+  max-width: 1320px;
+  padding: clamp(32px, 4vw, 52px) clamp(16px, 3vw, 40px) 10px;
+}
+
+.catalog-hero h1 {
+  color: var(--maroon);
+  font-family: var(--font-serif), "Cormorant Garamond", serif;
+  font-size: clamp(28px, 4vw, 46px);
+  font-weight: 600;
+  line-height: 1.05;
+  margin: 0;
+  max-width: 840px;
+}
+
+.catalog-hero p:last-child {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.65;
+  margin: 10px 0 0;
+  max-width: 760px;
+}
+
+.catalog-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 /* ---------- Bridal / trust ---------- */
@@ -635,6 +734,18 @@ h3 {
   padding: 20px 14px;
   text-align: center;
   transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.category-card-media {
+  aspect-ratio: 16 / 10;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  object-fit: cover;
+  width: 100%;
+}
+
+.category-card-label {
+  display: block;
 }
 
 .category-grid a:hover {
@@ -872,6 +983,90 @@ h3 {
 
 .footer a:hover {
   color: #fff3dd;
+}
+
+/* ---------- Info pages ---------- */
+
+.info-page {
+  margin: 0 auto;
+  max-width: 1000px;
+  padding: clamp(34px, 5vw, 56px) clamp(16px, 3vw, 40px);
+}
+
+.info-page-head {
+  margin-bottom: 28px;
+}
+
+.info-page-head h1 {
+  color: var(--maroon);
+  font-family: var(--font-serif), "Cormorant Garamond", serif;
+  font-size: clamp(30px, 4vw, 44px);
+  font-weight: 600;
+  margin: 0;
+}
+
+.info-page-head p:last-child {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.7;
+  margin-top: 12px;
+  max-width: 760px;
+}
+
+.info-page-body {
+  display: grid;
+  gap: 18px;
+}
+
+.info-block {
+  background: #fffdf8;
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+  box-shadow: var(--shadow-card);
+  padding: 20px 22px;
+}
+
+.info-block h2 {
+  color: var(--maroon);
+  font-family: var(--font-serif), "Cormorant Garamond", serif;
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+
+.info-block p {
+  color: var(--muted);
+  line-height: 1.75;
+  margin: 0 0 10px;
+}
+
+.info-block p:last-child {
+  margin-bottom: 0;
+}
+
+/* ---------- Tabs ---------- */
+
+.tab-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.tab-link {
+  background: rgba(116, 19, 30, 0.05);
+  border: 1px solid rgba(116, 19, 30, 0.12);
+  border-radius: 999px;
+  color: var(--maroon);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 10px 16px;
+  text-transform: uppercase;
+}
+
+.tab-link.active {
+  background: var(--maroon);
+  color: #fffaf3;
 }
 
 /* ---------- Product detail ---------- */
@@ -2391,6 +2586,15 @@ h3 {
   .product-grid {
     gap: 10px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .product-grid-dense {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .nav-panel,
+  .nav-panel-categories {
+    display: none;
   }
 
   .category-grid {

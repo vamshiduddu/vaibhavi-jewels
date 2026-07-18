@@ -1,14 +1,17 @@
 import Link from "next/link";
 import Image from "next/image";
 import { getCartDetail } from "@/lib/cart";
+import { getActiveCategories, getActiveCollections } from "@/lib/catalog";
 import { getSection, getSettings } from "@/lib/content";
 import { BagIcon, HeartIcon, SearchIcon, UserIcon } from "@/components/icons";
 
 export default async function SiteHeader() {
-  const [settings, announcement, cart] = await Promise.all([
+  const [settings, announcement, cart, categories, collections] = await Promise.all([
     getSettings(),
     getSection("announcement"),
     getCartDetail(),
+    getActiveCategories(),
+    getActiveCollections(),
   ]);
 
   return (
@@ -60,10 +63,40 @@ export default async function SiteHeader() {
 
         <div className="nav-strip">
           <nav aria-label="Main navigation">
-            <Link href="/collections">Collections</Link>
-            <Link href="/categories">Categories</Link>
-            <Link href="/#new-arrivals">New Arrivals</Link>
-            <Link href="/#bridal">Bridal</Link>
+            <div className="nav-item nav-item-has-panel">
+              <Link href="/collections">Collections</Link>
+              {collections.length ? (
+                <div className="nav-panel">
+                  {collections.map((collection) => (
+                    <Link key={collection.id} href={`/collections/${collection.slug}`}>
+                      {collection.name}
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            <div className="nav-item nav-item-has-panel">
+              <Link href="/categories">Categories</Link>
+              {categories.length ? (
+                <div className="nav-panel nav-panel-categories">
+                  {categories.map((category) => (
+                    <div key={category.id} className="nav-panel-group">
+                      <Link href={`/categories/${category.slug}`}>{category.name}</Link>
+                      {category.subcategories.slice(0, 6).map((subcategory) => (
+                        <Link
+                          key={subcategory.id}
+                          href={`/categories/${category.slug}/${subcategory.slug}`}
+                          className="nav-panel-sub"
+                        >
+                          {subcategory.name}
+                        </Link>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            <Link href="/#catalog">Shop All</Link>
             <Link href="/account/orders">Track Order</Link>
             <Link href="/#visit">Contact</Link>
           </nav>

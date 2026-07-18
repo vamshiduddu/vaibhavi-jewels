@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Product, ProductImage, Promotion } from "@prisma/client";
+import AddToCartButton from "@/components/AddToCartButton";
 import { effectivePrice } from "@/lib/pricing";
 import { formatINR } from "@/lib/format";
 
@@ -34,7 +35,9 @@ export default function ProductCard({ product, promotions }: Props) {
           {compareAt ? <span className="price-was">{formatINR(compareAt)}</span> : null}
           {offPercent ? <span className="price-off">{offPercent}% off</span> : null}
         </div>
-        {product.stockQuantity < 1 ? <span className="stock-note out">Out of stock</span> : null}
+        <div className="product-card-actions">
+          <AddToCartButton productId={product.id} disabled={product.stockQuantity < 1} />
+        </div>
       </div>
     </article>
   );

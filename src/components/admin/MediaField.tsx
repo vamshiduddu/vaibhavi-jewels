@@ -3,7 +3,17 @@
 import { useRef, useState } from "react";
 import { detectProvider, videoThumbnail, type MediaItem } from "@/lib/media";
 
-export default function MediaField({ initial }: { initial: MediaItem[] }) {
+type Props = {
+  initial: MediaItem[];
+  uploadContext?: {
+    folder?: string;
+    entityType?: string;
+    entityId?: string | null;
+    entityLabel?: string | null;
+  };
+};
+
+export default function MediaField({ initial, uploadContext }: Props) {
   const [items, setItems] = useState<MediaItem[]>(initial);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -29,6 +39,10 @@ export default function MediaField({ initial }: { initial: MediaItem[] }) {
       for (const file of Array.from(files)) {
         const body = new FormData();
         body.append("file", file);
+        if (uploadContext?.folder) body.append("folder", uploadContext.folder);
+        if (uploadContext?.entityType) body.append("entityType", uploadContext.entityType);
+        if (uploadContext?.entityId) body.append("entityId", uploadContext.entityId);
+        if (uploadContext?.entityLabel) body.append("entityLabel", uploadContext.entityLabel);
         const res = await fetch("/api/admin/upload", { method: "POST", body });
         const data = await res.json();
         if (data.ok) {

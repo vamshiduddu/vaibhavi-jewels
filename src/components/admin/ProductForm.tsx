@@ -1,15 +1,52 @@
+"use client";
+
 import type {
   Category,
   Collection,
-  Product,
   ProductImage,
   Subcategory,
 } from "@prisma/client";
+import { useMemo, useState } from "react";
 import MediaField from "@/components/admin/MediaField";
 import { saveProduct } from "@/lib/admin/catalog-actions";
 
+type ProductFormValue = {
+  id: string;
+  title: string;
+  slug: string;
+  shortDescription: string | null;
+  description: string | null;
+  price: number;
+  compareAtPrice: number | null;
+  purchaseCost: number | null;
+  sku: string | null;
+  barcodeValue: string | null;
+  barcodeType: "code39" | "code128" | "qr";
+  stockQuantity: number;
+  lowStockThreshold: number;
+  categoryId: string | null;
+  subcategoryId: string | null;
+  collectionId: string | null;
+  tags: string[];
+  status: "draft" | "active" | "archived";
+  featured: boolean;
+  badge: string | null;
+  color: string | null;
+  material: string | null;
+  occasion: string | null;
+  salePrice: number | null;
+  saleStartsAt: Date | null;
+  saleEndsAt: Date | null;
+  sortOrder: number;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  images: ProductImage[];
+};
+
 type Props = {
-  product?: (Product & { images: ProductImage[] }) | null;
+  product?: ProductFormValue | null;
   categories: (Category & { subcategories: Subcategory[] })[];
   collections: Collection[];
 };
@@ -22,8 +59,22 @@ function dateInputValue(date: Date | null | undefined): string {
 }
 
 export default function ProductForm({ product, categories, collections }: Props) {
-  const subcategories = categories.flatMap((c) =>
-    c.subcategories.map((s) => ({ ...s, categoryName: c.name })),
+  const [selectedCategoryId, setSelectedCategoryId] = useState(product?.categoryId ?? "");
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState(product?.subcategoryId ?? "");
+
+  const subcategories = useMemo(
+    () =>
+      categories.flatMap((category) =>
+        category.subcategories.map((subcategory) => ({
+          ...subcategory,
+          categoryName: category.name,
+        })),
+      ),
+    [categories],
+  );
+  const visibleSubcategories = useMemo(
+    () => subcategories.filter((subcategory) => subcategory.categoryId === selectedCategoryId),
+    [selectedCategoryId, subcategories],
   );
 
   return (
@@ -127,7 +178,22 @@ export default function ProductForm({ product, categories, collections }: Props)
       <div className="form-row-2">
         <label>
           Category
-          <select name="categoryId" defaultValue={product?.categoryId ?? ""}>
+          <select
+            name="categoryId"
+            value={selectedCategoryId}
+            onChange={(event) => {
+              const nextCategoryId = event.target.value;
+              setSelectedCategoryId(nextCategoryId);
+              setSelectedSubcategoryId((current) =>
+                subcategories.some(
+                  (subcategory) =>
+                    subcategory.id === current && subcategory.categoryId === nextCategoryId,
+                )
+                  ? current
+                  : "",
+              );
+            }}
+          >
             <option value="">None</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
@@ -138,11 +204,16 @@ export default function ProductForm({ product, categories, collections }: Props)
         </label>
         <label>
           Subcategory
-          <select name="subcategoryId" defaultValue={product?.subcategoryId ?? ""}>
+          <select
+            name="subcategoryId"
+            value={selectedSubcategoryId}
+            onChange={(event) => setSelectedSubcategoryId(event.target.value)}
+            disabled={!selectedCategoryId}
+          >
             <option value="">None</option>
-            {subcategories.map((s) => (
+            {visibleSubcategories.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.categoryName} / {s.name}
+                {s.name}
               </option>
             ))}
           </select>
@@ -182,6 +253,12 @@ export default function ProductForm({ product, categories, collections }: Props)
             alt: i.alt,
           })) ?? []
         }
+        uploadContext={{
+          folder: product?.id ? `products/${product.id}` : "products/draft",
+          entityType: "product",
+          entityId: product?.id ?? null,
+          entityLabel: product?.sku ?? null,
+        }}
       />
 
       <label>

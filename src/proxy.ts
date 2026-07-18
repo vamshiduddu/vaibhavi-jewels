@@ -64,7 +64,7 @@ function hasPermission(
   );
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (!pathname.startsWith("/admin") || pathname === "/admin/login") {
     return NextResponse.next();
@@ -89,10 +89,7 @@ export async function middleware(request: NextRequest) {
       : [];
 
     const matched = ROUTE_PERMISSIONS.find(([prefix]) => pathname.startsWith(prefix));
-    if (
-      matched &&
-      !hasPermission(role, matched[1], grantedPermissions, deniedPermissions)
-    ) {
+    if (matched && !hasPermission(role, matched[1], grantedPermissions, deniedPermissions)) {
       return NextResponse.redirect(homeUrl);
     }
 

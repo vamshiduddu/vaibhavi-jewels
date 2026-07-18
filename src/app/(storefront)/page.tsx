@@ -1,81 +1,52 @@
 import Link from "next/link";
-import { getActiveCategories, getActiveCollections, getHomepageBanners, getHomepageNewArrivals } from "@/lib/catalog";
+import ProductCard from "@/components/ProductCard";
+import { getActiveCategories, getActiveCollections, getHomepageNewArrivals } from "@/lib/catalog";
 import { getSections, getSettings, whatsappLink } from "@/lib/content";
 import { getActivePromotions } from "@/lib/pricing";
-import ProductCard from "@/components/ProductCard";
+
+const MAPS_URL = "https://maps.app.goo.gl/Nq9amp46LcvgCfHN6";
 
 export default async function HomePage() {
-  const [sections, settings, promotions, collections, categories, newArrivals, banners] =
-    await Promise.all([
-      getSections(),
-      getSettings(),
-      getActivePromotions(),
-      getActiveCollections(),
-      getActiveCategories(),
-      getHomepageNewArrivals(),
-      getHomepageBanners(),
-    ]);
+  const [sections, settings, promotions, collections, categories, products] = await Promise.all([
+    getSections(),
+    getSettings(),
+    getActivePromotions(),
+    getActiveCollections(),
+    getActiveCategories(),
+    getHomepageNewArrivals(),
+  ]);
 
-  const hero = sections.hero;
-  const heroBanner = banners.find((b) => b.location === "homepage_hero");
-  const offerBanners = banners.filter((b) => b.location === "offer_strip");
   const phone = settings.whatsapp_phone ?? "918074486906";
 
   return (
     <>
-      <section className="hero">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          className="hero-banner"
-          src={heroBanner?.imageUrl ?? hero?.imageUrl ?? "/vaibhavi-banner.png"}
-          alt={heroBanner?.title ?? "Vaibhavi Jewels banner"}
-        />
-        <div className="hero-content">
-          <p className="eyebrow">{hero?.kicker ?? "Elegant Designs | Premium Quality | Pan India Shipping"}</p>
-          <h1>{hero?.title ?? settings.site_name ?? "Vaibhavi Jewels"}</h1>
-          <p className="hero-copy">
-            {hero?.body ?? "Not just jewellery, a statement of grace. Curated for the modern woman."}
+      <section className="catalog-hero" id="catalog">
+        <div className="section-heading">
+          <p className="section-kicker">Vaibhavi Jewels</p>
+          <h1>Browse the live catalogue across every collection and category.</h1>
+          <p>
+            Fresh inventory, dynamic pricing, and direct add-to-cart ordering without a banner-led homepage.
           </p>
-          <div className="hero-actions">
-            <Link className="primary-button" href="/collections">
-              View Collections
-            </Link>
-            <Link className="secondary-button" href="/categories">
-              Browse Categories
-            </Link>
-          </div>
+        </div>
+        <div className="catalog-hero-actions">
+          <Link className="primary-button" href="/categories">
+            Explore Categories
+          </Link>
+          <Link className="secondary-button" href="/collections">
+            Shop Collections
+          </Link>
         </div>
       </section>
-
-      {offerBanners.length ? (
-        <section className="collections collections-featured" aria-label="Special offers">
-          <div className="collection-grid">
-            {offerBanners.map((banner) => (
-              <Link
-                key={banner.id}
-                href={banner.linkUrl ?? "/collections"}
-                className="collection-pill"
-              >
-                {banner.title}
-              </Link>
-            ))}
-          </div>
-        </section>
-      ) : null}
 
       {collections.length ? (
         <section className="collections collections-featured" aria-labelledby="collections-title">
           <div className="section-heading section-heading-center">
-            <p className="section-kicker">Shop by collections</p>
-            <h2 id="collections-title">Choose your finish.</h2>
+            <p className="section-kicker">Curated collections</p>
+            <h2 id="collections-title">Hover the menu or jump straight into these edits.</h2>
           </div>
           <div className="collection-strip">
             {collections.map((collection) => (
-              <Link
-                key={collection.id}
-                href={`/collections/${collection.slug}`}
-                className="collection-pill"
-              >
+              <Link key={collection.id} href={`/collections/${collection.slug}`} className="collection-pill">
                 {collection.name}
               </Link>
             ))}
@@ -83,118 +54,69 @@ export default async function HomePage() {
         </section>
       ) : null}
 
-      {sections.intro ? (
-        <section className="intro">
-          <div>
-            <p className="section-kicker">{sections.intro.kicker ?? "Designed with care"}</p>
-            <h2>{sections.intro.title ?? "Elegant one gram jewellery for every occasion."}</h2>
-          </div>
-          <p>{sections.intro.body}</p>
-        </section>
-      ) : null}
-
-      {newArrivals.length ? (
-        <section className="collections" id="new-arrivals" aria-labelledby="arrivals-title">
-          <div className="section-heading">
-            <p className="section-kicker">{sections.new_arrivals?.kicker ?? "New arrivals"}</p>
-            <h2 id="arrivals-title">
-              {sections.new_arrivals?.title ?? "Fresh styles ready to order."}
-            </h2>
-          </div>
-          <div className="product-grid">
-            {newArrivals.map((product) => (
-              <ProductCard key={product.id} product={product} promotions={promotions} />
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {sections.bridal ? (
-        <section className="bridal" id="bridal">
-          <div className="bridal-panel">
-            <p className="section-kicker">{sections.bridal.kicker ?? "Occasion styling"}</p>
-            <h2>{sections.bridal.title ?? "Curated jewellery for the modern woman."}</h2>
-            <p>{sections.bridal.body}</p>
-            <a
-              className="primary-button"
-              href={
-                sections.bridal.ctaUrl ??
-                whatsappLink(phone, "Hello Vaibhavi Jewels, I would like to order jewellery.")
-              }
-              target="_blank"
-              rel="noreferrer"
-            >
-              {sections.bridal.ctaText ?? "DM to Order"}
-            </a>
-          </div>
-        </section>
-      ) : null}
+      <section className="collections" aria-labelledby="catalog-grid-title">
+        <div className="section-heading">
+          <p className="section-kicker">{sections.new_arrivals?.kicker ?? "Live inventory"}</p>
+          <h2 id="catalog-grid-title">{sections.new_arrivals?.title ?? "Shop 25 products from across the catalogue."}</h2>
+          <p>
+            Products are served dynamically with cached catalogue queries and lazy-loaded images to keep the storefront responsive.
+          </p>
+        </div>
+        <div className="product-grid product-grid-dense">
+          {products.map((product) => (
+            <ProductCard key={product.id} product={product} promotions={promotions} />
+          ))}
+        </div>
+      </section>
 
       {categories.length ? (
         <section className="categories" id="categories" aria-labelledby="category-title">
           <div className="section-heading section-heading-center">
             <p className="section-kicker">Shop by category</p>
-            <h2 id="category-title">Browse by jewellery type.</h2>
+            <h2 id="category-title">Navigate by product type, then drill into subcategories.</h2>
           </div>
           <div className="category-grid">
             {categories.map((category) => (
               <Link key={category.id} href={`/categories/${category.slug}`}>
-                {category.name} <span>See more</span>
+                {category.name}
+                <span>{category.subcategories.length ? `${category.subcategories.length} subcategories` : "See more"}</span>
               </Link>
             ))}
           </div>
         </section>
       ) : null}
 
-      {sections.payments ? (
-        <section className="payments" id="payments" aria-labelledby="payments-title">
-          <div className="section-heading section-heading-center">
-            <p className="section-kicker">{sections.payments.kicker ?? "Secure checkout"}</p>
-            <h2 id="payments-title">
-              {sections.payments.title ?? "Pay securely online with Razorpay."}
-            </h2>
-            <p>{sections.payments.body}</p>
-          </div>
-        </section>
-      ) : null}
-
       <section className="trust">
         <div>
-          <strong>Elegant Designs</strong>
-          <span>Timeless beauty for special occasions and daily styling.</span>
+          <strong>Dynamic D2C Selling</strong>
+          <span>Online orders, social selling, and POS inventory can run against the same catalogue.</span>
         </div>
         <div>
-          <strong>Premium Quality</strong>
-          <span>One gram jewellery with a polished, occasion-ready finish.</span>
+          <strong>Secure Payments</strong>
+          <span>Razorpay checkout for the storefront, manual sales capture for assisted channels.</span>
         </div>
         <div>
-          <strong>Pan India Shipping</strong>
-          <span>Safe and secure delivery to your doorstep.</span>
+          <strong>Store Visit</strong>
+          <span>Use the map link below for walk-ins, pickups, and in-store discovery.</span>
         </div>
       </section>
 
       <section className="visit" id="visit">
         <div>
           <p className="section-kicker">{sections.contact?.kicker ?? "Visit Vaibhavi Jewels"}</p>
-          <h2>{sections.contact?.title ?? "Order online or DM us."}</h2>
-          <p>{sections.contact?.body ?? "Pan India shipping with WhatsApp support."}</p>
+          <h2>{sections.contact?.title ?? "Order online, over DM, or visit the store."}</h2>
+          <p>{sections.contact?.body ?? "Pan India shipping with WhatsApp support and in-store assistance."}</p>
         </div>
         <div className="contact-box">
-          <a
-            href={whatsappLink(phone, "Hello Vaibhavi Jewels, I would like to order jewellery.")}
-            target="_blank"
-            rel="noreferrer"
-          >
+          <a href={whatsappLink(phone, "Hello Vaibhavi Jewels, I would like to order jewellery.")} target="_blank" rel="noreferrer">
             WhatsApp: {settings.whatsapp_display ?? "+91 80744 86906"}
+          </a>
+          <a href={MAPS_URL} target="_blank" rel="noreferrer">
+            Store Location
           </a>
           {settings.instagram_url ? (
             <a href={settings.instagram_url} target="_blank" rel="noreferrer">
               {settings.instagram_handle ?? "Instagram"}
-            </a>
-          ) : null}
-          {settings.facebook_url ? (
-            <a href={settings.facebook_url} target="_blank" rel="noreferrer">
-              Facebook
             </a>
           ) : null}
           {settings.youtube_url ? (
@@ -202,7 +124,6 @@ export default async function HomePage() {
               YouTube
             </a>
           ) : null}
-          <span>Pan India shipping available</span>
         </div>
       </section>
     </>

@@ -13,7 +13,16 @@ const getActiveCollectionsCached = unstable_cache(
 
 const getActiveCategoriesCached = unstable_cache(
   async () => {
-    return db.category.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } });
+    return db.category.findMany({
+      where: { active: true },
+      orderBy: { sortOrder: "asc" },
+      include: {
+        subcategories: {
+          where: { active: true },
+          orderBy: { sortOrder: "asc" },
+        },
+      },
+    });
   },
   ["catalog:categories:active"],
   { revalidate: 300, tags: [CACHE_TAGS.catalog] },
@@ -40,7 +49,7 @@ const getHomepageNewArrivalsCached = unstable_cache(
     return db.product.findMany({
       where: { status: "active" },
       orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
-      take: 6,
+      take: 25,
       include: {
         images: {
           where: { kind: "image" },
