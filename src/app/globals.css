@@ -1935,50 +1935,93 @@ h3 {
   padding: 3px 11px;
 }
 
-.barcode-grid {
+.barcode-print-sheet {
+  --label-width: 50mm;
+  --label-height: 25mm;
+  --label-gap: 2mm;
   display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--label-gap);
+  grid-template-columns: repeat(auto-fill, minmax(var(--label-width), var(--label-width)));
+  justify-content: flex-start;
 }
 
-.barcode-card {
-  background: #fffdf8;
-  border: 1px solid var(--line-soft);
-  border-radius: 12px;
-  box-shadow: var(--shadow-card);
-  display: grid;
-  gap: 12px;
-  padding: 18px;
+.barcode-print-sheet[data-size="38x25"] {
+  --label-width: 38mm;
+  --label-height: 25mm;
 }
 
-.barcode-card strong {
-  display: block;
-  font-size: 15px;
+.barcode-print-sheet[data-size="50x25"] {
+  --label-width: 50mm;
+  --label-height: 25mm;
 }
 
-.barcode-card span {
-  color: var(--muted);
-  font-size: 12px;
+.barcode-print-sheet[data-size="60x30"] {
+  --label-width: 60mm;
+  --label-height: 30mm;
 }
 
-.barcode-svg {
+.barcode-print-card {
   background: #fff;
   border: 1px solid var(--line-soft);
-  border-radius: 10px;
+  border-radius: 1.4mm;
+  box-shadow: var(--shadow-card);
+  break-inside: avoid;
+  display: grid;
+  gap: 1.1mm;
+  grid-template-rows: auto 1fr auto;
+  height: var(--label-height);
   overflow: hidden;
-  padding: 14px;
+  padding: 1.8mm;
+  width: var(--label-width);
 }
 
-.barcode-svg svg {
+.barcode-print-head {
+  display: grid;
+  gap: 0.45mm;
+  min-width: 0;
+}
+
+.barcode-print-title {
   display: block;
-  height: auto;
+  font-size: 2.3mm;
+  font-weight: 700;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.barcode-print-sku {
+  color: var(--muted);
+  font-size: 1.8mm;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.barcode-print-code {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.barcode-print-code svg {
+  display: block;
+  height: 100%;
   width: 100%;
 }
 
-.barcode-meta {
+.barcode-print-foot {
   align-items: center;
+  color: var(--muted);
   display: flex;
+  font-size: 1.7mm;
   justify-content: space-between;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 /* ---------- Responsive ---------- */
@@ -2114,6 +2157,9 @@ h3 {
 
 @media print {
   .admin-sidebar,
+  .admin-header,
+  .subcategory-strip,
+  .admin-main > p,
   .admin-header a,
   .admin-header button,
   .sidebar-footer,
@@ -2130,12 +2176,7 @@ h3 {
     padding: 0;
   }
 
-  .barcode-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .barcode-card {
-    break-inside: avoid;
+  .barcode-print-card {
     box-shadow: none;
   }
 }
