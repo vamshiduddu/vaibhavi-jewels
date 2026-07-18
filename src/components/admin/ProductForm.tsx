@@ -1,11 +1,6 @@
 "use client";
 
-import type {
-  Category,
-  Collection,
-  ProductImage,
-  Subcategory,
-} from "@prisma/client";
+import type { Category, Collection, ProductImage, Subcategory } from "@prisma/client";
 import { useMemo, useState } from "react";
 import MediaField from "@/components/admin/MediaField";
 import { saveProduct } from "@/lib/admin/catalog-actions";
@@ -19,6 +14,7 @@ type ProductFormValue = {
   price: number;
   compareAtPrice: number | null;
   purchaseCost: number | null;
+  weightGrams: number;
   sku: string | null;
   barcodeValue: string | null;
   barcodeType: "code39" | "code128" | "qr";
@@ -40,6 +36,9 @@ type ProductFormValue = {
   sortOrder: number;
   seoTitle: string | null;
   seoDescription: string | null;
+  aiInstagramCaption: string | null;
+  aiYoutubeTitle: string | null;
+  aiYoutubeDescription: string | null;
   createdAt: Date;
   updatedAt: Date;
   images: ProductImage[];
@@ -53,9 +52,7 @@ type Props = {
 
 function dateInputValue(date: Date | null | undefined): string {
   if (!date) return "";
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
-    .toISOString()
-    .slice(0, 16);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 }
 
 export default function ProductForm({ product, categories, collections }: Props) {
@@ -101,14 +98,7 @@ export default function ProductForm({ product, categories, collections }: Props)
       <div className="form-row-2">
         <label>
           Price (Rs.)
-          <input
-            name="price"
-            type="number"
-            step="0.01"
-            min="0"
-            required
-            defaultValue={product ? Number(product.price) : ""}
-          />
+          <input name="price" type="number" step="0.01" min="0" required defaultValue={product ? Number(product.price) : ""} />
         </label>
         <label>
           Compare-at Price (Rs.)
@@ -144,12 +134,7 @@ export default function ProductForm({ product, categories, collections }: Props)
         </label>
         <label>
           Stock Quantity
-          <input
-            name="stockQuantity"
-            type="number"
-            min="0"
-            defaultValue={product?.stockQuantity ?? 0}
-          />
+          <input name="stockQuantity" type="number" min="0" defaultValue={product?.stockQuantity ?? 0} />
         </label>
       </div>
 
@@ -165,14 +150,17 @@ export default function ProductForm({ product, categories, collections }: Props)
           />
         </label>
         <label>
-          Low Stock Threshold
-          <input
-            name="lowStockThreshold"
-            type="number"
-            min="0"
-            defaultValue={product?.lowStockThreshold ?? 3}
-          />
+          Weight (grams)
+          <input name="weightGrams" type="number" min="1" defaultValue={product?.weightGrams ?? 250} />
         </label>
+      </div>
+
+      <div className="form-row-2">
+        <label>
+          Low Stock Threshold
+          <input name="lowStockThreshold" type="number" min="0" defaultValue={product?.lowStockThreshold ?? 3} />
+        </label>
+        <div />
       </div>
 
       <div className="form-row-2">
@@ -185,10 +173,7 @@ export default function ProductForm({ product, categories, collections }: Props)
               const nextCategoryId = event.target.value;
               setSelectedCategoryId(nextCategoryId);
               setSelectedSubcategoryId((current) =>
-                subcategories.some(
-                  (subcategory) =>
-                    subcategory.id === current && subcategory.categoryId === nextCategoryId,
-                )
+                subcategories.some((subcategory) => subcategory.id === current && subcategory.categoryId === nextCategoryId)
                   ? current
                   : "",
               );
@@ -309,19 +294,11 @@ export default function ProductForm({ product, categories, collections }: Props)
       <div className="form-row-2">
         <label>
           Sale Starts
-          <input
-            name="saleStartsAt"
-            type="datetime-local"
-            defaultValue={dateInputValue(product?.saleStartsAt)}
-          />
+          <input name="saleStartsAt" type="datetime-local" defaultValue={dateInputValue(product?.saleStartsAt)} />
         </label>
         <label>
           Sale Ends
-          <input
-            name="saleEndsAt"
-            type="datetime-local"
-            defaultValue={dateInputValue(product?.saleEndsAt)}
-          />
+          <input name="saleEndsAt" type="datetime-local" defaultValue={dateInputValue(product?.saleEndsAt)} />
         </label>
       </div>
 

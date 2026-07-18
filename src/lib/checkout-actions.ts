@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { getCartDetail, getCartId } from "@/lib/cart";
 import { onlinePaymentsEnabled } from "@/lib/content";
 import { orderNumber } from "@/lib/format";
+import { getShippingConfig, shippingFor } from "@/lib/pricing";
 import { razorpayClient } from "@/lib/razorpay";
 
 const checkoutSchema = z.object({
@@ -17,6 +18,7 @@ const checkoutSchema = z.object({
   city: z.string().min(2, "Please enter your city."),
   state: z.string().min(2, "Please enter your state."),
   pincode: z.string().min(6, "Please enter a valid pincode.").max(6),
+  country: z.string().min(2, "Please select your country."),
 });
 
 export type PlaceOrderResult =
@@ -46,6 +48,7 @@ export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> 
     city: formData.get("city"),
     state: formData.get("state"),
     pincode: formData.get("pincode"),
+    country: formData.get("country"),
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid details." };
@@ -72,6 +75,16 @@ export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> 
 
   const useRazorpay = await onlinePaymentsEnabled();
   const keyId = process.env.RAZORPAY_KEY_ID ?? "";
+  const shippingConfig = await getShippingConfig();
+  const countryLabel =
+    shippingConfig.supportedCountries.find((country) => country.code === input.country)?.label ?? input.country;
+  const recalculatedShipping = shippingFor({
+    subtotalAfterDiscount: cart.subtotal - cart.couponDiscount,
+    countryCode: input.country,
+    totalWeightGrams: cart.totalWeightGrams,
+    config: shippingConfig,
+  });
+  const grandTotal = Math.round((cart.subtotal - cart.couponDiscount + recalculatedShipping) * 100) / 100;
 
   // guest checkout: attach to an existing customer only when email/phone matches
   let customerId: string | null = null;
@@ -101,6 +114,7 @@ export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> 
       city: input.city,
       state: input.state,
       pincode: input.pincode,
+      country: countryLabel,
     },
   });
 
@@ -115,8 +129,8 @@ export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> 
       status: useRazorpay ? "payment_pending" : "pending",
       subtotal: cart.subtotal,
       discountTotal: cart.couponDiscount,
-      shippingTotal: cart.shipping,
-      grandTotal: cart.grandTotal,
+      shippingTotal: recalculatedShipping,
+      grandTotal,
       couponCode: cart.couponDiscount > 0 ? cart.couponCode : null,
       items: {
         create: cart.lines.map((line) => ({
@@ -160,7 +174,7 @@ export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> 
     return { ok: true, mode: "manual", orderId: order.id, orderNumber: order.orderNumber };
   }
 
-  const amountPaise = Math.round(cart.grandTotal * 100);
+  const amountPaise = Math.round(grandTotal * 100);
   let razorpayOrder;
   try {
     razorpayOrder = await razorpayClient().orders.create({
@@ -178,7 +192,7 @@ export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> 
     data: {
       orderId: order.id,
       razorpayOrderId: razorpayOrder.id,
-      amount: cart.grandTotal,
+      amount: grandTotal,
       currency: "INR",
       status: "initiated",
     },

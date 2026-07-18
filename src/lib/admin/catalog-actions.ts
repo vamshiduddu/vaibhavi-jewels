@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { CACHE_TAGS } from "@/lib/cache";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
+import { generateProductSocialContent } from "@/lib/ai";
 import { generateProductBarcodeValue, normalizeBarcodeValue } from "@/lib/barcode";
 import { slugify } from "@/lib/format";
 
@@ -58,6 +59,48 @@ async function generateUniqueSku(title: string): Promise<string> {
   }
 
   return `VJ-${titlePart}-${Date.now().toString(36).toUpperCase()}`;
+}
+
+async function buildAndStoreProductAiContent(productId: string) {
+  const product = await db.product.findUnique({
+    where: { id: productId },
+    select: {
+      id: true,
+      title: true,
+      shortDescription: true,
+      description: true,
+      price: true,
+      sku: true,
+      tags: true,
+      category: { select: { name: true } },
+      subcategory: { select: { name: true } },
+    },
+  });
+  if (!product) throw new Error("Product not found.");
+
+  const aiContent = await generateProductSocialContent({
+    title: product.title,
+    shortDescription: product.shortDescription,
+    description: product.description,
+    price: Number(product.price),
+    sku: product.sku,
+    tags: product.tags,
+    categoryName: product.category?.name ?? null,
+    subcategoryName: product.subcategory?.name ?? null,
+  });
+
+  if (!aiContent) return null;
+
+  await db.product.update({
+    where: { id: productId },
+    data: {
+      aiInstagramCaption: aiContent.instagramCaption || null,
+      aiYoutubeTitle: aiContent.youtubeTitle || null,
+      aiYoutubeDescription: aiContent.youtubeDescription || null,
+    },
+  });
+
+  return aiContent;
 }
 
 // ---------- Categories ----------
@@ -191,6 +234,7 @@ export async function saveProduct(formData: FormData) {
     price: num(formData, "price"),
     compareAtPrice: optional(formData, "compareAtPrice") ? num(formData, "compareAtPrice") : null,
     purchaseCost: optional(formData, "purchaseCost") ? num(formData, "purchaseCost") : null,
+    weightGrams: Math.max(1, num(formData, "weightGrams", 250)),
     sku: rawSku,
     barcodeValue: null as string | null,
     barcodeType: (str(formData, "barcodeType") || "code39") as "code39" | "code128" | "qr",
@@ -250,9 +294,35 @@ export async function saveProduct(formData: FormData) {
     });
   }
 
+  const existingAi = id
+    ? await db.product.findUnique({
+        where: { id: productId },
+        select: {
+          aiInstagramCaption: true,
+          aiYoutubeTitle: true,
+          aiYoutubeDescription: true,
+        },
+      })
+    : null;
+  const hasExistingAi = Boolean(
+    existingAi?.aiInstagramCaption || existingAi?.aiYoutubeTitle || existingAi?.aiYoutubeDescription,
+  );
+  if (!hasExistingAi) {
+    await buildAndStoreProductAiContent(productId).catch(() => null);
+  }
+
   revalidateTag(CACHE_TAGS.catalog, "max");
   revalidatePath("/admin/products");
   redirect("/admin/products");
+}
+
+export async function generateProductAiContent(formData: FormData) {
+  await requireAdmin("catalog");
+  const productId = str(formData, "productId");
+  if (!productId) return;
+  await buildAndStoreProductAiContent(productId);
+  revalidateTag(CACHE_TAGS.catalog, "max");
+  revalidatePath(`/admin/products/${productId}`);
 }
 
 export async function archiveProduct(formData: FormData) {

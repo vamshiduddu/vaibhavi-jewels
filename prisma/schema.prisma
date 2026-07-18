@@ -148,6 +148,7 @@ model Product {
   price            Decimal        @db.Decimal(10, 2)
   compareAtPrice   Decimal?       @db.Decimal(10, 2)
   purchaseCost     Decimal?       @db.Decimal(10, 2)
+  weightGrams      Int            @default(250)
   sku              String?        @unique
   barcodeValue     String?        @unique
   barcodeType      BarcodeType    @default(code128)
@@ -173,6 +174,9 @@ model Product {
   sortOrder        Int            @default(0)
   seoTitle         String?
   seoDescription   String?
+  aiInstagramCaption String?
+  aiYoutubeTitle   String?
+  aiYoutubeDescription String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   images           ProductImage[]

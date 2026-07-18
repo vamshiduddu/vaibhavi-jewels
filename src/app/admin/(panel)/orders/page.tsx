@@ -34,7 +34,10 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
     db.order.findMany({
       where: {
         addressId: { not: null },
-        payments: { some: { status: "paid" } },
+        OR: [
+          { payments: { some: { status: "paid" } } },
+          { status: { in: ["paid", "processing", "packed", "shipped", "delivered"] } },
+        ],
       },
       orderBy: { createdAt: "desc" },
       take: 100,

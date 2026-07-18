@@ -94,15 +94,13 @@ export default function MediaField({ initial, uploadContext }: Props) {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={thumb} alt="" />
                 ) : (
-                  <span className="media-item-tile">▶</span>
+                  <span className="media-item-tile">Video</span>
                 )}
-                {item.kind === "video" ? <span className="media-kind">▶ video</span> : null}
-                {i === 0 && item.kind === "image" ? (
-                  <span className="media-kind featured">featured</span>
-                ) : null}
+                {item.kind === "video" ? <span className="media-kind">video</span> : null}
+                {i === 0 && item.kind === "image" ? <span className="media-kind featured">featured</span> : null}
                 <div className="media-item-actions">
                   <button type="button" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move earlier">
-                    ←
+                    {"<"}
                   </button>
                   <button
                     type="button"
@@ -110,7 +108,7 @@ export default function MediaField({ initial, uploadContext }: Props) {
                     disabled={i === items.length - 1}
                     aria-label="Move later"
                   >
-                    →
+                    {">"}
                   </button>
                   <button
                     type="button"
@@ -118,8 +116,13 @@ export default function MediaField({ initial, uploadContext }: Props) {
                     onClick={() => setItems((prev) => prev.filter((_, j) => j !== i))}
                     aria-label="Remove"
                   >
-                    ✕
+                    X
                   </button>
+                  {item.kind === "image" ? (
+                    <a href={`/api/admin/media/download?url=${encodeURIComponent(item.url)}`} target="_blank" rel="noreferrer">
+                      Download
+                    </a>
+                  ) : null}
                 </div>
               </div>
             );
@@ -127,7 +130,7 @@ export default function MediaField({ initial, uploadContext }: Props) {
         </div>
       ) : (
         <p style={{ color: "var(--muted)", fontSize: 13, margin: 0 }}>
-          No media yet. Upload images or add a video link — the first image becomes the cover.
+          No media yet. Upload images or add a video link - the first image becomes the cover.
         </p>
       )}
 
@@ -146,12 +149,7 @@ export default function MediaField({ initial, uploadContext }: Props) {
         </label>
       </div>
       <div className="media-controls">
-        <input
-          type="url"
-          placeholder="Paste image URL"
-          value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
-        />
+        <input type="url" placeholder="Paste image URL" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
         <button type="button" className="secondary-button" onClick={addImageUrl}>
           Add Image URL
         </button>

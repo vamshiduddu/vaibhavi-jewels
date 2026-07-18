@@ -3,12 +3,17 @@ import type { Metadata } from "next";
 import { getCartDetail } from "@/lib/cart";
 import { onlinePaymentsEnabled } from "@/lib/content";
 import { formatINR } from "@/lib/format";
+import { getShippingConfig } from "@/lib/pricing";
 import CheckoutForm from "@/components/CheckoutForm";
 
 export const metadata: Metadata = { title: "Checkout" };
 
 export default async function CheckoutPage() {
-  const [cart, onlinePayments] = await Promise.all([getCartDetail(), onlinePaymentsEnabled()]);
+  const [cart, onlinePayments, shippingConfig] = await Promise.all([
+    getCartDetail(),
+    onlinePaymentsEnabled(),
+    getShippingConfig(),
+  ]);
 
   if (!cart.lines.length) {
     return (
@@ -32,7 +37,7 @@ export default async function CheckoutPage() {
       </div>
       <div className="cart-layout">
         <div className="admin-card">
-          <CheckoutForm onlinePayments={onlinePayments} />
+          <CheckoutForm onlinePayments={onlinePayments} countries={shippingConfig.supportedCountries} />
         </div>
         <aside className="summary-card">
           <h2>Order Summary</h2>
@@ -58,6 +63,9 @@ export default async function CheckoutPage() {
             <span>Shipping</span>
             <span>{cart.shipping === 0 ? "Free" : formatINR(cart.shipping)}</span>
           </div>
+          <p style={{ color: "var(--muted)", fontSize: 12, lineHeight: 1.6 }}>
+            Shipping shown here uses the default India estimate. Final shipping is recalculated from destination country and total product weight during order placement.
+          </p>
           <div className="summary-row total">
             <span>Total</span>
             <span>{formatINR(cart.grandTotal)}</span>

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
 import { placeOrder } from "@/lib/checkout-actions";
+import type { ShippingCountry } from "@/lib/pricing";
 
 declare global {
   interface Window {
@@ -11,7 +12,13 @@ declare global {
   }
 }
 
-export default function CheckoutForm({ onlinePayments }: { onlinePayments: boolean }) {
+export default function CheckoutForm({
+  onlinePayments,
+  countries,
+}: {
+  onlinePayments: boolean;
+  countries: ShippingCountry[];
+}) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [paying, setPaying] = useState(false);
@@ -112,10 +119,22 @@ export default function CheckoutForm({ onlinePayments }: { onlinePayments: boole
             <input name="state" required autoComplete="address-level1" />
           </label>
         </div>
-        <label>
-          Pincode
-          <input name="pincode" required inputMode="numeric" pattern="[0-9]{6}" autoComplete="postal-code" />
-        </label>
+        <div className="form-row-2">
+          <label>
+            Pincode
+            <input name="pincode" required inputMode="numeric" pattern="[0-9]{6}" autoComplete="postal-code" />
+          </label>
+          <label>
+            Country
+            <select name="country" defaultValue="IN" autoComplete="country-name">
+              {countries.map((country) => (
+                <option key={country.code} value={country.code}>
+                  {country.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
         {error ? <p className="form-error">{error}</p> : null}
         {!onlinePayments ? (
           <p className="form-success">

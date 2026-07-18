@@ -5,14 +5,16 @@ import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { formatINR } from "@/lib/format";
 
-type LabelSize = "50x25";
+type LabelSize = "38x25" | "50x25" | "60x30";
 
 type Props = {
   searchParams: Promise<{ productId?: string; size?: string }>;
 };
 
 const SIZES: Array<{ value: LabelSize; label: string }> = [
-  { value: "50x25", label: "GLUN 50 x 25 mm thermal label" },
+  { value: "38x25", label: "38 x 25 mm" },
+  { value: "50x25", label: "GLUN 50 x 25 mm thermal label (Default)" },
+  { value: "60x30", label: "60 x 30 mm" },
 ];
 
 export default async function AdminBarcodesPage({ searchParams }: Props) {
@@ -54,8 +56,21 @@ export default async function AdminBarcodesPage({ searchParams }: Props) {
         </Link>
       </div>
 
+      <div className="subcategory-strip" style={{ justifyContent: "flex-start", marginBottom: 18 }}>
+        {SIZES.map((item) => {
+          const href = productId
+            ? `/admin/barcodes?productId=${productId}&size=${item.value}`
+            : `/admin/barcodes?size=${item.value}`;
+          return (
+            <Link key={item.value} href={href} className={labelSize === item.value ? "active" : undefined}>
+              {item.label}
+            </Link>
+          );
+        })}
+      </div>
+
       <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 18px" }}>
-        Printing is locked to the thermal stock in use: <strong>{SIZES[0].label}</strong>.
+        Default label stock is <strong>GLUN 50 x 25 mm</strong>. You can still switch sizes before printing.
       </p>
 
       <BarcodeLabelManager

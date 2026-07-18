@@ -10,10 +10,11 @@ type Props = {
 };
 
 const BARCODE_PRINT_CSS = `
-  @page { margin: 4mm; size: auto; }
+  @page { margin: 0; size: auto; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: #fff; color: #111; font-family: Inter, Arial, sans-serif; }
-  .print-root { padding: 0; }
+  html, body { margin: 0; padding: 0; background: #fff; color: #111; font-family: Inter, Arial, sans-serif; width: fit-content; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .print-root { padding: 0; width: fit-content; }
   .barcode-print-sheet {
     --label-width: 50mm;
     --label-height: 25mm;
@@ -22,6 +23,8 @@ const BARCODE_PRINT_CSS = `
     gap: var(--label-gap);
     grid-template-columns: repeat(auto-fill, minmax(var(--label-width), var(--label-width)));
     align-content: start;
+    width: fit-content;
+    margin: 0;
   }
   .barcode-print-sheet[data-size="38x25"] {
     --label-width: 38mm;
@@ -94,9 +97,10 @@ const BARCODE_PRINT_CSS = `
 `;
 
 const SHIPPING_PRINT_CSS = `
-  @page { margin: 4mm; size: auto; }
+  @page { margin: 0; size: auto; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #fff; color: #111; font-family: Inter, Arial, sans-serif; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .print-root { padding: 0; }
   .shipping-print-sheet {
     display: grid;

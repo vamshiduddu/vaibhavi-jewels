@@ -2,6 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import {
+  estimateWeightGrams,
   effectivePrice,
   evaluateCoupon,
   getActivePromotions,
@@ -45,6 +46,7 @@ export type CartLine = {
   lineTotal: number;
   imageUrl: string | null;
   stockQuantity: number;
+  weightGrams: number;
 };
 
 export type CartDetail = {
@@ -55,6 +57,7 @@ export type CartDetail = {
   couponCode: string | null;
   couponDiscount: number;
   couponError: string | null;
+  totalWeightGrams: number;
   shipping: number;
   grandTotal: number;
 };
@@ -67,6 +70,7 @@ const EMPTY_CART: CartDetail = {
   couponCode: null,
   couponDiscount: 0,
   couponError: null,
+  totalWeightGrams: 0,
   shipping: 0,
   grandTotal: 0,
 };
@@ -106,6 +110,7 @@ export async function getCartDetail(): Promise<CartDetail> {
         lineTotal: Math.round(price * item.quantity * 100) / 100,
         imageUrl: item.product.images[0]?.url ?? null,
         stockQuantity: item.product.stockQuantity,
+        weightGrams: item.product.weightGrams,
       };
     });
 
@@ -125,8 +130,16 @@ export async function getCartDetail(): Promise<CartDetail> {
     }
   }
 
+  const totalWeightGrams = estimateWeightGrams(lines);
   const shippingConfig = await getShippingConfig();
-  const shipping = lines.length ? shippingFor(subtotal - couponDiscount, shippingConfig) : 0;
+  const shipping = lines.length
+    ? shippingFor({
+        subtotalAfterDiscount: subtotal - couponDiscount,
+        countryCode: "IN",
+        totalWeightGrams,
+        config: shippingConfig,
+      })
+    : 0;
   const grandTotal = Math.round((subtotal - couponDiscount + shipping) * 100) / 100;
 
   return {
@@ -137,6 +150,7 @@ export async function getCartDetail(): Promise<CartDetail> {
     couponCode,
     couponDiscount,
     couponError,
+    totalWeightGrams,
     shipping,
     grandTotal,
   };
