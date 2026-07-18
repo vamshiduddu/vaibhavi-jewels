@@ -2474,6 +2474,76 @@ h3 {
   white-space: nowrap;
 }
 
+.copy-toast {
+  background: rgba(101, 8, 21, 0.96);
+  border-radius: 999px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  width: fit-content;
+}
+
+.shipping-print-shipment,
+.shipping-print-return {
+  display: grid;
+  gap: 6px;
+}
+
+.shipping-print-shipment {
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 10px 12px;
+}
+
+.shipping-print-return {
+  border-top: 1px dashed var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  padding-top: 10px;
+}
+
+.shipping-print-return strong {
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.settings-form {
+  gap: 18px;
+}
+
+.settings-help {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.settings-field-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-grid-block {
+  display: grid;
+  gap: 12px;
+}
+
+.settings-table-wrap {
+  overflow-x: auto;
+}
+
+.settings-table input,
+.settings-table select {
+  min-width: 0;
+  width: 100%;
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 980px) {

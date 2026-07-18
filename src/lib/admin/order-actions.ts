@@ -61,3 +61,23 @@ export async function saveOrderNotes(formData: FormData) {
   await db.order.update({ where: { id }, data: { internalNotes } });
   revalidatePath(`/admin/orders/${id}`);
 }
+
+export async function saveOrderShipmentDetails(formData: FormData) {
+  await requireAdmin("orders");
+  const id = String(formData.get("id") ?? "");
+  const shippingPartner = String(formData.get("shippingPartner") ?? "").trim() || null;
+  const awbCode = String(formData.get("awbCode") ?? "").trim() || null;
+  const shippingCode = String(formData.get("shippingCode") ?? "").trim() || null;
+
+  await db.order.update({
+    where: { id },
+    data: {
+      shippingPartner,
+      awbCode,
+      shippingCode,
+    },
+  });
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${id}`);
+}

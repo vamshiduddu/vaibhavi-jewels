@@ -97,20 +97,27 @@ const BARCODE_PRINT_CSS = `
 `;
 
 const SHIPPING_PRINT_CSS = `
-  @page { margin: 0; size: auto; }
+  @page { size: A4 portrait; margin: 8mm; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #fff; color: #111; font-family: Inter, Arial, sans-serif; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .print-root { padding: 0; }
+  .print-root { padding: 0; width: 194mm; }
   .shipping-print-sheet {
+    width: 194mm;
     display: grid;
     gap: 3mm;
-    grid-template-columns: repeat(auto-fill, minmax(100mm, 100mm));
+    grid-template-columns: repeat(2, 95.5mm);
+    grid-auto-rows: 139mm;
     align-content: start;
+    background-image:
+      linear-gradient(to right, transparent 97mm, #b8b8b8 97mm, #b8b8b8 97.25mm, transparent 97.25mm),
+      linear-gradient(to bottom, transparent 140.5mm, #b8b8b8 140.5mm, #b8b8b8 140.75mm, transparent 140.75mm);
+    background-size: 194mm 281mm;
+    background-repeat: repeat-y;
   }
   .shipping-print-card {
-    width: 100mm;
-    min-height: 150mm;
+    width: 95.5mm;
+    min-height: 139mm;
     border: 0.3mm solid #111;
     border-radius: 2mm;
     display: grid;
@@ -118,6 +125,7 @@ const SHIPPING_PRINT_CSS = `
     padding: 4mm;
     break-inside: avoid;
     background: #fff;
+    page-break-inside: avoid;
   }
   .shipping-print-top,
   .shipping-print-meta,
@@ -144,6 +152,18 @@ const SHIPPING_PRINT_CSS = `
     font-weight: 800;
     line-height: 1.15;
   }
+  .shipping-print-shipment,
+  .shipping-print-return {
+    display: grid;
+    gap: 1mm;
+    font-size: 3.2mm;
+    line-height: 1.3;
+  }
+  .shipping-print-shipment {
+    padding: 1.8mm 2.2mm;
+    border: 0.3mm dashed #999;
+    border-radius: 1.5mm;
+  }
   .shipping-print-phone {
     font-size: 4.2mm;
     font-weight: 700;
@@ -157,6 +177,13 @@ const SHIPPING_PRINT_CSS = `
     padding: 2mm 0;
     border-top: 0.3mm dashed #999;
     border-bottom: 0.3mm dashed #999;
+  }
+  .shipping-print-return {
+    padding-top: 1.2mm;
+    border-top: 0.3mm dashed #999;
+  }
+  .shipping-print-return strong {
+    font-size: 3.25mm;
   }
   .shipping-print-meta,
   .shipping-print-bottom {
@@ -174,6 +201,23 @@ export default function PrintButton({
   disabled = false,
   variant = "barcode",
 }: Props) {
+  function buildPrintMarkup(sourceHtml: string, pageTitle: string) {
+    return `
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <title>${pageTitle}</title>
+          <style>${variant === "shipping" ? SHIPPING_PRINT_CSS : BARCODE_PRINT_CSS}</style>
+        </head>
+        <body>
+          <div class="print-root">${sourceHtml}</div>
+        </body>
+      </html>
+    `;
+  }
+
   return (
     <button
       type="button"
@@ -183,6 +227,25 @@ export default function PrintButton({
         if (disabled) return;
         const source = document.getElementById(sheetId);
         if (!source) return;
+        const pageTitle = title || "Barcode Labels";
+        const markup = buildPrintMarkup(source.outerHTML, pageTitle);
+        const isMobile =
+          typeof window !== "undefined" &&
+          window.matchMedia?.("(max-width: 820px)").matches;
+
+        if (isMobile) {
+          const popup = window.open("", "_blank", "noopener,noreferrer");
+          if (!popup) return;
+          popup.document.open();
+          popup.document.write(markup);
+          popup.document.close();
+          popup.focus();
+          window.setTimeout(() => {
+            popup.print();
+          }, 350);
+          return;
+        }
+
         const frame = document.createElement("iframe");
         frame.setAttribute("aria-hidden", "true");
         frame.style.position = "fixed";
@@ -201,20 +264,7 @@ export default function PrintButton({
         }
 
         doc.open();
-        doc.write(`
-          <!doctype html>
-          <html>
-            <head>
-              <meta charset="utf-8" />
-              <meta name="viewport" content="width=device-width, initial-scale=1" />
-              <title>${title || "Barcode Labels"}</title>
-              <style>${variant === "shipping" ? SHIPPING_PRINT_CSS : BARCODE_PRINT_CSS}</style>
-            </head>
-            <body>
-              <div class="print-root">${source.outerHTML}</div>
-            </body>
-          </html>
-        `);
+        doc.write(markup);
         doc.close();
 
         win.focus();

@@ -311,6 +311,9 @@ model Order {
   grandTotal      Decimal     @db.Decimal(10, 2)
   couponCode      String?
   promotionLabel  String?
+  shippingPartner String?
+  awbCode         String?
+  shippingCode    String?
   internalNotes   String?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt

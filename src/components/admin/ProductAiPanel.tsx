@@ -31,8 +31,16 @@ export default function ProductAiPanel({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [downloadAllPending, setDownloadAllPending] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const imageMedia = media.filter((item) => item.kind === "image");
   const hasAiContent = Boolean(instagramCaption || youtubeTitle || youtubeDescription);
+
+  async function handleCopy(value: string, label: string) {
+    if (!value) return;
+    await copyText(value);
+    setToast(`${label} copied to clipboard`);
+    window.setTimeout(() => setToast(null), 1800);
+  }
 
   function handleGenerate() {
     startTransition(async () => {
@@ -65,6 +73,7 @@ export default function ProductAiPanel({
   return (
     <div style={{ display: "grid", gap: 20 }}>
       <section className="admin-card">
+        {toast ? <div className="copy-toast">{toast}</div> : null}
         <div className="chart-card-head">
           <h3>AI Social Copy</h3>
           <span>{hasAiContent ? "Saved for this product" : "Generate on demand"}</span>
@@ -91,7 +100,7 @@ export default function ProductAiPanel({
             type="button"
             className="secondary-button"
             style={{ width: "fit-content" }}
-            onClick={() => void copyText(instagramCaption ?? "")}
+            onClick={() => void handleCopy(instagramCaption ?? "", "Instagram caption")}
           >
             Copy Instagram Caption
           </button>
@@ -104,7 +113,7 @@ export default function ProductAiPanel({
             type="button"
             className="secondary-button"
             style={{ width: "fit-content" }}
-            onClick={() => void copyText(youtubeTitle ?? "")}
+            onClick={() => void handleCopy(youtubeTitle ?? "", "YouTube title")}
           >
             Copy YouTube Title
           </button>
@@ -117,7 +126,7 @@ export default function ProductAiPanel({
             type="button"
             className="secondary-button"
             style={{ width: "fit-content" }}
-            onClick={() => void copyText(youtubeDescription ?? "")}
+            onClick={() => void handleCopy(youtubeDescription ?? "", "YouTube description")}
           >
             Copy YouTube Description
           </button>

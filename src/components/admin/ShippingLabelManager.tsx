@@ -20,6 +20,19 @@ type ShippingLabel = {
   pincode: string;
   country: string;
   itemCount: number;
+  shippingPartner: string | null;
+  awbCode: string | null;
+  shippingCode: string | null;
+  returnTo: {
+    name: string;
+    phone: string;
+    line1: string;
+    line2: string | null;
+    city: string;
+    state: string;
+    pincode: string;
+    country: string;
+  };
 };
 
 export default function ShippingLabelManager({ labels }: { labels: ShippingLabel[] }) {
@@ -97,7 +110,8 @@ export default function ShippingLabelManager({ labels }: { labels: ShippingLabel
           </PrintButton>
         </div>
         <p style={{ color: "var(--muted)", fontSize: 13, margin: 0 }}>
-          Only paid orders with a saved shipping address are included here. Choose how many copies to print per order.
+          Only paid orders with a saved shipping address are included here. Choose copies per order, then print the ready
+          labels.
         </p>
       </div>
 
@@ -159,6 +173,14 @@ export default function ShippingLabelManager({ labels }: { labels: ShippingLabel
                         {label.email ? ` · ${label.email}` : ""}
                         <br />
                         {label.itemCount} items · {label.total} · {label.source}
+                        {label.shippingPartner || label.awbCode || label.shippingCode ? (
+                          <>
+                            <br />
+                            {label.shippingPartner ? `Partner: ${label.shippingPartner}` : "Partner: —"}
+                            {label.awbCode ? ` · AWB: ${label.awbCode}` : ""}
+                            {label.shippingCode ? ` · Code: ${label.shippingCode}` : ""}
+                          </>
+                        ) : null}
                         <br />
                         Paid: {label.paidAt}
                       </div>
@@ -194,6 +216,13 @@ export default function ShippingLabelManager({ labels }: { labels: ShippingLabel
                     <strong className="shipping-print-order">{label.orderNumber}</strong>
                     <span className="shipping-print-paid">Paid</span>
                   </div>
+                  {label.shippingPartner || label.awbCode || label.shippingCode ? (
+                    <div className="shipping-print-shipment">
+                      {label.shippingPartner ? <span>Partner: {label.shippingPartner}</span> : null}
+                      {label.awbCode ? <span>AWB: {label.awbCode}</span> : null}
+                      {label.shippingCode ? <span>Ship Code: {label.shippingCode}</span> : null}
+                    </div>
+                  ) : null}
                   <div className="shipping-print-name">{label.customerName}</div>
                   <div className="shipping-print-phone">{label.phone}</div>
                   <div className="shipping-print-address">
@@ -203,6 +232,17 @@ export default function ShippingLabelManager({ labels }: { labels: ShippingLabel
                       {label.city}, {label.state} {label.pincode}
                     </span>
                     <span>{label.country}</span>
+                  </div>
+                  <div className="shipping-print-return">
+                    <strong>If undelivered, return to</strong>
+                    <span>{label.returnTo.name}</span>
+                    {label.returnTo.phone ? <span>{label.returnTo.phone}</span> : null}
+                    <span>{label.returnTo.line1}</span>
+                    {label.returnTo.line2 ? <span>{label.returnTo.line2}</span> : null}
+                    <span>
+                      {label.returnTo.city}, {label.returnTo.state} {label.returnTo.pincode}
+                    </span>
+                    <span>{label.returnTo.country}</span>
                   </div>
                   <div className="shipping-print-meta">
                     <span>{label.total}</span>

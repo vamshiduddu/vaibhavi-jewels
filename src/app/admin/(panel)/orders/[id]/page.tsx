@@ -1,7 +1,10 @@
 import { notFound } from "next/navigation";
+import OrderShipmentPanel from "@/components/admin/OrderShipmentPanel";
 import { db } from "@/lib/db";
 import { formatINR } from "@/lib/format";
 import { saveOrderNotes, updateOrderStatus } from "@/lib/admin/order-actions";
+import { getSettings } from "@/lib/content";
+import { getReturnAddress, hasCompleteReturnAddress, toShippingLabel } from "@/lib/shipping-labels";
 
 const STATUSES = [
   "pending",
@@ -17,16 +20,29 @@ const STATUSES = [
 
 export default async function AdminOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const order = await db.order.findUnique({
-    where: { id },
-    include: {
-      items: true,
-      address: true,
-      customer: true,
-      payments: { orderBy: { createdAt: "desc" } },
-    },
-  });
+  const [order, settings] = await Promise.all([
+    db.order.findUnique({
+      where: { id },
+      include: {
+        items: true,
+        address: true,
+        customer: true,
+        payments: { orderBy: { createdAt: "desc" } },
+      },
+    }),
+    getSettings(),
+  ]);
   if (!order) notFound();
+  const returnTo = getReturnAddress(settings);
+  const shippingLabel = toShippingLabel(
+    order,
+    formatINR,
+    order.payments[0]?.createdAt.toLocaleString("en-IN", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }) ?? "Paid",
+    returnTo,
+  );
 
   return (
     <>
@@ -125,6 +141,16 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
               </button>
             </form>
           </div>
+
+          <OrderShipmentPanel
+            orderId={order.id}
+            orderStatus={order.status}
+            shippingPartner={order.shippingPartner}
+            awbCode={order.awbCode}
+            shippingCode={order.shippingCode}
+            label={shippingLabel}
+            returnAddressReady={hasCompleteReturnAddress(returnTo)}
+          />
 
           <div className="admin-card">
             <h3 style={{ marginBottom: 16 }}>Customer</h3>

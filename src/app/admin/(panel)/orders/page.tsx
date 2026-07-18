@@ -1,8 +1,10 @@
 import Link from "next/link";
 import ShippingLabelManager from "@/components/admin/ShippingLabelManager";
 import { requireAdmin } from "@/lib/auth";
+import { getSettings } from "@/lib/content";
 import { db } from "@/lib/db";
 import { formatINR } from "@/lib/format";
+import { getReturnAddress, toShippingLabel } from "@/lib/shipping-labels";
 
 const STATUS_FILTERS = [
   "all",
@@ -24,7 +26,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
   const filter = STATUS_FILTERS.includes(status as (typeof STATUS_FILTERS)[number]) ? status : "all";
   const activeTab = tab === "shipping-labels" ? "shipping-labels" : "orders";
 
-  const [orders, paidOrders] = await Promise.all([
+  const [orders, paidOrders, settings] = await Promise.all([
     db.order.findMany({
       where: filter && filter !== "all" ? { status: filter as never } : undefined,
       orderBy: { createdAt: "desc" },
@@ -51,7 +53,9 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
         },
       },
     }),
+    getSettings(),
   ]);
+  const returnTo = getReturnAddress(settings);
 
   return (
     <>
@@ -140,28 +144,18 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
       ) : (
         <ShippingLabelManager
           labels={paidOrders
-            .filter((order) => order.address)
-            .map((order) => ({
-              id: order.id,
-              orderNumber: order.orderNumber,
-              customerName: order.customerName,
-              phone: order.phone,
-              email: order.email,
-              total: formatINR(order.grandTotal),
-              paidAt:
+            .map((order) =>
+              toShippingLabel(
+                order,
+                formatINR,
                 order.payments[0]?.createdAt.toLocaleString("en-IN", {
                   dateStyle: "medium",
                   timeStyle: "short",
                 }) ?? "Paid",
-              source: order.source.replace(/_/g, " "),
-              line1: order.address!.line1,
-              line2: order.address!.line2,
-              city: order.address!.city,
-              state: order.address!.state,
-              pincode: order.address!.pincode,
-              country: order.address!.country,
-              itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
-            }))}
+                returnTo,
+              ),
+            )
+            .filter((label) => label !== null)}
         />
       )}
     </>

@@ -87,6 +87,14 @@ const SETTINGS: Record<string, string> = {
     "Elegant one gram jewellery curated for celebrations, gifting, and everyday shine.",
   shipping_flat_rate: "79",
   free_shipping_threshold: "999",
+  return_to_name: "Vaibhavi Jewels",
+  return_to_phone: "+91 80744 86906",
+  return_to_line1: "",
+  return_to_line2: "",
+  return_to_city: "",
+  return_to_state: "",
+  return_to_pincode: "",
+  return_to_country: "India",
 };
 
 function slugify(input: string): string {
