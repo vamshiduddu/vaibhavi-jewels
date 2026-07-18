@@ -3,6 +3,7 @@ import PrintButton from "@/components/admin/PrintButton";
 import { renderBarcodeSvg } from "@/lib/barcode";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { formatINR } from "@/lib/format";
 
 type LabelSize = "38x25" | "50x25" | "60x30";
 
@@ -85,6 +86,7 @@ export default async function AdminBarcodesPage({ searchParams }: Props) {
             <div className="barcode-print-head">
               <strong className="barcode-print-title">{product.title}</strong>
               <span className="barcode-print-sku">{product.sku || "No SKU"}</span>
+              <span className="barcode-print-price">{formatINR(product.price)}</span>
             </div>
             {svg ? (
               <div

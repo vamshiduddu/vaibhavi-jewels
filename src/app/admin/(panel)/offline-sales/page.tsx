@@ -1,3 +1,4 @@
+import ProductLookupField from "@/components/admin/ProductLookupField";
 import { createOfflineSale } from "@/lib/admin/operations-actions";
 import { saleSummaryText } from "@/lib/admin/meta";
 import { requireAdmin } from "@/lib/auth";
@@ -28,18 +29,24 @@ export default async function AdminOfflineSalesPage() {
         <section className="admin-card">
           <h3 style={{ marginTop: 0, marginBottom: 14 }}>Quick Counter Sale</h3>
           <form action={createOfflineSale} className="admin-form">
-            <label>
-              Product
-              <select name="productId" required>
-                <option value="">Select product</option>
-                {products.map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.title} · {product.stockQuantity} in stock
-                    {product.barcodeValue ? ` · ${product.barcodeValue}` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <ProductLookupField name="productId" label="Product Lookup" />
+            <details>
+              <summary style={{ cursor: "pointer", color: "var(--muted)", fontSize: 13 }}>
+                Browse full product list
+              </summary>
+              <label style={{ marginTop: 10 }}>
+                Product
+                <select name="productId">
+                  <option value="">Select product</option>
+                  {products.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.title} · {product.stockQuantity} in stock
+                      {product.barcodeValue ? ` · ${product.barcodeValue}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </details>
             <div className="form-row-2">
               <label>
                 Quantity
@@ -109,7 +116,10 @@ export default async function AdminOfflineSalesPage() {
                     {sale.customerName || "Walk-in customer"}
                     <br />
                     <small style={{ color: "var(--muted)" }}>
-                      {saleSummaryText(Number(sale.grandTotal), sale.items.reduce((sum, item) => sum + item.quantity, 0))}
+                      {saleSummaryText(
+                        Number(sale.grandTotal),
+                        sale.items.reduce((sum, item) => sum + item.quantity, 0),
+                      )}
                     </small>
                   </td>
                   <td>Rs. {Number(sale.grandTotal).toFixed(2)}</td>

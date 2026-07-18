@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { formatINR } from "@/lib/format";
+import { formatINR, toNumber } from "@/lib/format";
 import { requireAdmin } from "@/lib/auth";
 import {
   AreaChart,
@@ -11,28 +11,144 @@ import {
 } from "@/components/admin/charts";
 
 const REVENUE_STATUSES = ["paid", "processing", "packed", "shipped", "delivered"] as const;
+const FULFILMENT_STATUSES = [
+  "pending",
+  "payment_pending",
+  "paid",
+  "processing",
+  "packed",
+  "shipped",
+] as const;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-const DAY = 24 * 60 * 60 * 1000;
+type DashboardSearchParams = Promise<{
+  range?: string;
+  from?: string;
+  to?: string;
+}>;
 
-function dayKey(d: Date): string {
-  return d.toISOString().slice(0, 10);
+function startOfDay(date: Date): Date {
+  const value = new Date(date);
+  value.setHours(0, 0, 0, 0);
+  return value;
 }
 
-function dayLabel(d: Date): string {
-  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+function endOfDay(date: Date): Date {
+  const value = new Date(date);
+  value.setHours(23, 59, 59, 999);
+  return value;
 }
 
-export default async function AdminDashboard() {
+function shiftDays(date: Date, days: number): Date {
+  return new Date(date.getTime() + days * DAY_MS);
+}
+
+function parseDateInput(value?: string): Date | null {
+  if (!value) return null;
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function toDateInputValue(date: Date | null): string {
+  if (!date) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function dayKey(date: Date): string {
+  return toDateInputValue(date);
+}
+
+function dayLabel(date: Date): string {
+  return date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
+function percentDelta(current: number, previous: number): number | null {
+  if (!previous) return current ? 100 : null;
+  return ((current - previous) / previous) * 100;
+}
+
+function buildDateRange(
+  requestedRange: string | undefined,
+  requestedFrom: string | undefined,
+  requestedTo: string | undefined,
+  now: Date,
+) {
+  const today = endOfDay(now);
+  const range = requestedRange === "7d" || requestedRange === "30d" || requestedRange === "365d" || requestedRange === "custom"
+    ? requestedRange
+    : "30d";
+
+  if (range === "custom") {
+    const parsedFrom = parseDateInput(requestedFrom);
+    const parsedTo = parseDateInput(requestedTo);
+    if (parsedFrom && parsedTo) {
+      const fromDate = startOfDay(parsedFrom <= parsedTo ? parsedFrom : parsedTo);
+      const toDate = endOfDay(parsedFrom <= parsedTo ? parsedTo : parsedFrom);
+      const spanDays = Math.max(1, Math.ceil((toDate.getTime() - fromDate.getTime() + 1) / DAY_MS));
+      const previousTo = endOfDay(shiftDays(fromDate, -1));
+      const previousFrom = startOfDay(shiftDays(previousTo, -(spanDays - 1)));
+      return {
+        range,
+        label: `${dayLabel(fromDate)} to ${dayLabel(toDate)}`,
+        fromDate,
+        toDate,
+        previousFrom,
+        previousTo,
+      };
+    }
+  }
+
+  const presetDays = range === "7d" ? 7 : range === "365d" ? 365 : 30;
+  const fromDate = startOfDay(shiftDays(today, -(presetDays - 1)));
+  const previousTo = endOfDay(shiftDays(fromDate, -1));
+  const previousFrom = startOfDay(shiftDays(previousTo, -(presetDays - 1)));
+
+  return {
+    range,
+    label: range === "7d" ? "Last 7 days" : range === "365d" ? "Last 365 days" : "Last 30 days",
+    fromDate,
+    toDate: today,
+    previousFrom,
+    previousTo,
+  };
+}
+
+function sumTotals<T>(items: T[], getValue: (item: T) => number): number {
+  return items.reduce((total, item) => total + getValue(item), 0);
+}
+
+export default async function AdminDashboard({
+  searchParams,
+}: {
+  searchParams: DashboardSearchParams;
+}) {
   await requireAdmin("reports");
+
+  const params = await searchParams;
   const now = new Date();
-  const from30 = new Date(now.getTime() - 30 * DAY);
-  const from60 = new Date(now.getTime() - 60 * DAY);
+  const rangeConfig = buildDateRange(params.range, params.from, params.to, now);
+  const rangeWhere = {
+    gte: rangeConfig.fromDate,
+    lte: rangeConfig.toDate,
+  };
+  const previousWhere = {
+    gte: rangeConfig.previousFrom,
+    lte: rangeConfig.previousTo,
+  };
 
   const [
-    orders30,
-    prevOrders,
+    ordersInRange,
+    previousOrders,
+    allOrders,
     statusGroups,
+    offlineSalesInRange,
+    previousOfflineSales,
+    allOfflineSales,
     revenueItems,
+    offlineRevenueItems,
     lowStock,
     recentOrders,
     customerCount,
@@ -40,17 +156,47 @@ export default async function AdminDashboard() {
     activeProducts,
   ] = await Promise.all([
     db.order.findMany({
-      where: { createdAt: { gte: from30 } },
-      select: { createdAt: true, status: true, grandTotal: true },
+      where: { createdAt: rangeWhere },
+      select: { createdAt: true, status: true, grandTotal: true, source: true },
     }),
     db.order.findMany({
-      where: { createdAt: { gte: from60, lt: from30 } },
-      select: { status: true, grandTotal: true },
+      where: { createdAt: previousWhere },
+      select: { status: true, grandTotal: true, source: true },
+    }),
+    db.order.findMany({
+      select: { status: true, grandTotal: true, source: true },
     }),
     db.order.groupBy({ by: ["status"], _count: { _all: true } }),
+    db.offlineSale.findMany({
+      where: { createdAt: rangeWhere },
+      select: { createdAt: true, grandTotal: true },
+    }),
+    db.offlineSale.findMany({
+      where: { createdAt: previousWhere },
+      select: { grandTotal: true },
+    }),
+    db.offlineSale.findMany({
+      select: { grandTotal: true },
+    }),
     db.orderItem.findMany({
       where: {
-        order: { createdAt: { gte: from30 }, status: { in: [...REVENUE_STATUSES] } },
+        order: {
+          createdAt: rangeWhere,
+          status: { in: [...REVENUE_STATUSES] },
+        },
+      },
+      select: {
+        title: true,
+        lineTotal: true,
+        quantity: true,
+        product: { select: { category: { select: { name: true } } } },
+      },
+    }),
+    db.offlineSaleItem.findMany({
+      where: {
+        offlineSale: {
+          createdAt: rangeWhere,
+        },
       },
       select: {
         title: true,
@@ -71,47 +217,86 @@ export default async function AdminDashboard() {
       include: { items: { select: { quantity: true } } },
     }),
     db.customer.count(),
-    db.customer.count({ where: { createdAt: { gte: from30 } } }),
+    db.customer.count({ where: { createdAt: rangeWhere } }),
     db.product.count({ where: { status: "active" } }),
   ]);
 
-  // daily series for the last 30 days
+  const revenueStatusSet = new Set<string>(REVENUE_STATUSES);
+  const fulfilmentStatusSet = new Set<string>(FULFILMENT_STATUSES);
+
+  const selectedOnlineRevenue = sumTotals(
+    ordersInRange.filter((order) => revenueStatusSet.has(order.status)),
+    (order) => toNumber(order.grandTotal),
+  );
+  const selectedOfflineRevenue = sumTotals(offlineSalesInRange, (sale) => toNumber(sale.grandTotal));
+  const previousOnlineRevenue = sumTotals(
+    previousOrders.filter((order) => revenueStatusSet.has(order.status)),
+    (order) => toNumber(order.grandTotal),
+  );
+  const previousOfflineRevenue = sumTotals(previousOfflineSales, (sale) => toNumber(sale.grandTotal));
+
+  const selectedOnlineOrders = ordersInRange.length;
+  const selectedOfflineOrders = offlineSalesInRange.length;
+  const previousOnlineOrders = previousOrders.length;
+  const previousOfflineOrders = previousOfflineSales.length;
+
+  const allOnlineRevenue = sumTotals(
+    allOrders.filter((order) => revenueStatusSet.has(order.status)),
+    (order) => toNumber(order.grandTotal),
+  );
+  const allOfflineRevenue = sumTotals(allOfflineSales, (sale) => toNumber(sale.grandTotal));
+  const allOnlineOrders = allOrders.length;
+  const allOfflineOrders = allOfflineSales.length;
+
+  const selectedCombinedRevenue = selectedOnlineRevenue + selectedOfflineRevenue;
+  const previousCombinedRevenue = previousOnlineRevenue + previousOfflineRevenue;
+  const allCombinedRevenue = allOnlineRevenue + allOfflineRevenue;
+  const selectedCombinedOrders = selectedOnlineOrders + selectedOfflineOrders;
+  const previousCombinedOrders = previousOnlineOrders + previousOfflineOrders;
+  const allCombinedOrders = allOnlineOrders + allOfflineOrders;
+  const selectedAverageOrderValue = selectedCombinedOrders
+    ? selectedCombinedRevenue / selectedCombinedOrders
+    : 0;
+
+  const toFulfil = statusGroups
+    .filter((group) => fulfilmentStatusSet.has(group.status))
+    .reduce((total, group) => total + group._count._all, 0);
+
   const revenueByDay = new Map<string, number>();
   const ordersByDay = new Map<string, number>();
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * DAY);
-    revenueByDay.set(dayKey(d), 0);
-    ordersByDay.set(dayKey(d), 0);
+  for (
+    let cursor = startOfDay(rangeConfig.fromDate);
+    cursor <= rangeConfig.toDate;
+    cursor = shiftDays(cursor, 1)
+  ) {
+    const key = dayKey(cursor);
+    revenueByDay.set(key, 0);
+    ordersByDay.set(key, 0);
   }
-  const isRevenue = (s: string) => (REVENUE_STATUSES as readonly string[]).includes(s);
-  let revenue30 = 0;
-  let paidOrders30 = 0;
-  for (const order of orders30) {
+
+  for (const order of ordersInRange) {
     const key = dayKey(order.createdAt);
-    if (ordersByDay.has(key)) ordersByDay.set(key, (ordersByDay.get(key) ?? 0) + 1);
-    if (isRevenue(order.status)) {
-      const amount = Number(order.grandTotal);
-      revenue30 += amount;
-      paidOrders30 += 1;
-      if (revenueByDay.has(key)) revenueByDay.set(key, (revenueByDay.get(key) ?? 0) + amount);
+    ordersByDay.set(key, (ordersByDay.get(key) ?? 0) + 1);
+    if (revenueStatusSet.has(order.status)) {
+      revenueByDay.set(key, (revenueByDay.get(key) ?? 0) + toNumber(order.grandTotal));
     }
   }
-  const prevRevenue = prevOrders
-    .filter((o) => isRevenue(o.status))
-    .reduce((sum, o) => sum + Number(o.grandTotal), 0);
-  const prevOrderCount = prevOrders.length;
+  for (const sale of offlineSalesInRange) {
+    const key = dayKey(sale.createdAt);
+    ordersByDay.set(key, (ordersByDay.get(key) ?? 0) + 1);
+    revenueByDay.set(key, (revenueByDay.get(key) ?? 0) + toNumber(sale.grandTotal));
+  }
 
   const revenueSeries = Array.from(revenueByDay.entries()).map(([key, value]) => ({
-    label: dayLabel(new Date(key)),
+    label: dayLabel(new Date(`${key}T00:00:00`)),
     value: Math.round(value),
   }));
   const orderSeries = Array.from(ordersByDay.entries()).map(([key, value]) => ({
-    label: dayLabel(new Date(key)),
+    label: dayLabel(new Date(`${key}T00:00:00`)),
     value,
   }));
 
-  // status breakdown, pipeline order
-  const STATUS_ORDER = [
+  const statusOrder = [
     "pending",
     "payment_pending",
     "paid",
@@ -122,107 +307,187 @@ export default async function AdminDashboard() {
     "cancelled",
     "refunded",
   ];
-  const STATUS_COLOR: Record<string, string> = {
+  const statusColor: Record<string, string> = {
     pending: "#9c2434",
     payment_pending: "#9c2434",
     paid: "#0e8f7e",
     processing: "#b47a1d",
     packed: "#b47a1d",
-    shipped: "#b47a1d",
+    shipped: "#5865c0",
     delivered: "#0e8f7e",
     cancelled: "#8b8178",
     refunded: "#8b8178",
   };
-  const statusData = STATUS_ORDER.map((status) => ({
-    label: status.replace(/_/g, " "),
-    value: statusGroups.find((g) => g.status === status)?._count._all ?? 0,
-  })).filter((d) => d.value > 0);
-  const statusColors = STATUS_ORDER.filter(
-    (s) => (statusGroups.find((g) => g.status === s)?._count._all ?? 0) > 0,
-  ).map((s) => STATUS_COLOR[s]);
+  const statusData = statusOrder
+    .map((status) => ({
+      label: status.replace(/_/g, " "),
+      value: statusGroups.find((group) => group.status === status)?._count._all ?? 0,
+    }))
+    .filter((entry) => entry.value > 0);
+  const statusColors = statusOrder
+    .filter((status) => (statusGroups.find((group) => group.status === status)?._count._all ?? 0) > 0)
+    .map((status) => statusColor[status]);
 
-  // revenue by category + top products (last 30d, paid)
-  const byCategory = new Map<string, number>();
-  const byProduct = new Map<string, { revenue: number; units: number }>();
-  for (const item of revenueItems) {
-    const cat = item.product?.category?.name ?? "Uncategorised";
-    byCategory.set(cat, (byCategory.get(cat) ?? 0) + Number(item.lineTotal));
-    const p = byProduct.get(item.title) ?? { revenue: 0, units: 0 };
-    p.revenue += Number(item.lineTotal);
-    p.units += item.quantity;
-    byProduct.set(item.title, p);
+  const categoryRevenue = new Map<string, number>();
+  const productRevenue = new Map<string, { revenue: number; units: number }>();
+  for (const item of [...revenueItems, ...offlineRevenueItems]) {
+    const category = item.product?.category?.name ?? "Uncategorised";
+    categoryRevenue.set(category, (categoryRevenue.get(category) ?? 0) + toNumber(item.lineTotal));
+    const current = productRevenue.get(item.title) ?? { revenue: 0, units: 0 };
+    current.revenue += toNumber(item.lineTotal);
+    current.units += item.quantity;
+    productRevenue.set(item.title, current);
   }
-  const categoryData = Array.from(byCategory.entries())
+
+  const categoryData = Array.from(categoryRevenue.entries())
     .map(([label, value]) => ({ label, value: Math.round(value) }))
-    .sort((a, b) => b.value - a.value)
+    .sort((left, right) => right.value - left.value)
     .slice(0, 8);
-  const topProducts = Array.from(byProduct.entries())
-    .map(([title, v]) => ({ title, ...v }))
-    .sort((a, b) => b.revenue - a.revenue)
+  const topProducts = Array.from(productRevenue.entries())
+    .map(([title, value]) => ({ title, ...value }))
+    .sort((left, right) => right.revenue - left.revenue)
     .slice(0, 6);
 
-  const aov = paidOrders30 ? revenue30 / paidOrders30 : 0;
-  const toFulfil = statusGroups
-    .filter((g) => ["paid", "processing", "packed"].includes(g.status))
-    .reduce((sum, g) => sum + g._count._all, 0);
-
-  const revDelta = prevRevenue > 0 ? ((revenue30 - prevRevenue) / prevRevenue) * 100 : null;
-  const orderDelta =
-    prevOrderCount > 0 ? ((orders30.length - prevOrderCount) / prevOrderCount) * 100 : null;
-
-  const revSpark = revenueSeries.slice(-14).map((d) => d.value);
-  const orderSpark = orderSeries.slice(-14).map((d) => d.value);
+  const revenueDelta = percentDelta(selectedCombinedRevenue, previousCombinedRevenue);
+  const ordersDelta = percentDelta(selectedCombinedOrders, previousCombinedOrders);
+  const revenueSpark = revenueSeries.slice(-Math.min(revenueSeries.length, 14)).map((point) => point.value);
+  const orderSpark = orderSeries.slice(-Math.min(orderSeries.length, 14)).map((point) => point.value);
 
   return (
     <>
       <div className="admin-header">
-        <h1>Dashboard</h1>
-        <span className="pill">Last 30 days</span>
+        <div>
+          <h1>Dashboard</h1>
+          <p className="admin-header-note">
+            Revenue and orders for {rangeConfig.label.toLowerCase()} with all-time reference totals.
+          </p>
+        </div>
+        <form method="get" className="dashboard-filters">
+          <div className="dashboard-filters-row">
+            <label>
+              Range
+              <select name="range" defaultValue={rangeConfig.range}>
+                <option value="7d">Last week</option>
+                <option value="30d">Last month</option>
+                <option value="365d">Last year</option>
+                <option value="custom">Custom dates</option>
+              </select>
+            </label>
+            <label>
+              From
+              <input
+                type="date"
+                name="from"
+                defaultValue={toDateInputValue(rangeConfig.fromDate)}
+                max={toDateInputValue(now)}
+              />
+            </label>
+            <label>
+              To
+              <input
+                type="date"
+                name="to"
+                defaultValue={toDateInputValue(rangeConfig.toDate)}
+                max={toDateInputValue(now)}
+              />
+            </label>
+          </div>
+          <div className="dashboard-filters-actions">
+            <button type="submit" className="primary-button">
+              Apply
+            </button>
+            <Link href="/admin" className="secondary-button">
+              Reset
+            </Link>
+          </div>
+        </form>
       </div>
 
       <div className="stat-grid">
         <div className="stat-card">
-          <span>Revenue</span>
-          <strong>{formatINR(Math.round(revenue30))}</strong>
+          <span>Combined Revenue</span>
+          <strong>{formatINR(Math.round(selectedCombinedRevenue))}</strong>
           <div className="stat-foot">
-            {revDelta !== null ? (
-              <span className={`stat-delta ${revDelta >= 0 ? "up" : "down"}`}>
-                {revDelta >= 0 ? "▲" : "▼"} {Math.abs(revDelta).toFixed(0)}% vs prev 30d
+            {revenueDelta !== null ? (
+              <span className={`stat-delta ${revenueDelta >= 0 ? "up" : "down"}`}>
+                {revenueDelta >= 0 ? "Up" : "Down"} {Math.abs(revenueDelta).toFixed(0)}% vs previous range
               </span>
             ) : (
-              <span className="stat-delta">first 30 days</span>
+              <span className="stat-delta">No previous range data</span>
             )}
-            <Sparkline data={revSpark} color={CHART_COLORS[0]} />
+            <Sparkline data={revenueSpark.length ? revenueSpark : [0]} color={CHART_COLORS[0]} />
           </div>
+          <div className="stat-subline">All time {formatINR(Math.round(allCombinedRevenue))}</div>
         </div>
+
         <div className="stat-card">
-          <span>Orders</span>
-          <strong>{orders30.length}</strong>
+          <span>Combined Orders</span>
+          <strong>{selectedCombinedOrders}</strong>
           <div className="stat-foot">
-            {orderDelta !== null ? (
-              <span className={`stat-delta ${orderDelta >= 0 ? "up" : "down"}`}>
-                {orderDelta >= 0 ? "▲" : "▼"} {Math.abs(orderDelta).toFixed(0)}% vs prev 30d
+            {ordersDelta !== null ? (
+              <span className={`stat-delta ${ordersDelta >= 0 ? "up" : "down"}`}>
+                {ordersDelta >= 0 ? "Up" : "Down"} {Math.abs(ordersDelta).toFixed(0)}% vs previous range
               </span>
             ) : (
-              <span className="stat-delta">first 30 days</span>
+              <span className="stat-delta">No previous range data</span>
             )}
-            <Sparkline data={orderSpark} color={CHART_COLORS[1]} />
+            <Sparkline data={orderSpark.length ? orderSpark : [0]} color={CHART_COLORS[1]} />
+          </div>
+          <div className="stat-subline">All time {allCombinedOrders}</div>
+        </div>
+
+        <div className="stat-card">
+          <span>Online Revenue</span>
+          <strong>{formatINR(Math.round(selectedOnlineRevenue))}</strong>
+          <div className="stat-foot">
+            <span className="stat-delta">{selectedOnlineOrders} online orders in range</span>
+          </div>
+          <div className="stat-subline">All time {formatINR(Math.round(allOnlineRevenue))}</div>
+        </div>
+
+        <div className="stat-card">
+          <span>Offline Revenue</span>
+          <strong>{formatINR(Math.round(selectedOfflineRevenue))}</strong>
+          <div className="stat-foot">
+            <span className="stat-delta">{selectedOfflineOrders} offline bills in range</span>
+          </div>
+          <div className="stat-subline">All time {formatINR(Math.round(allOfflineRevenue))}</div>
+        </div>
+
+        <div className="stat-card">
+          <span>Online Orders</span>
+          <strong>{selectedOnlineOrders}</strong>
+          <div className="stat-foot">
+            <span className="stat-delta">All time {allOnlineOrders}</span>
           </div>
         </div>
+
+        <div className="stat-card">
+          <span>Offline Orders</span>
+          <strong>{selectedOfflineOrders}</strong>
+          <div className="stat-foot">
+            <span className="stat-delta">All time {allOfflineOrders}</span>
+          </div>
+        </div>
+
         <div className="stat-card">
           <span>Avg Order Value</span>
-          <strong>{formatINR(Math.round(aov))}</strong>
+          <strong>{formatINR(Math.round(selectedAverageOrderValue))}</strong>
           <div className="stat-foot">
-            <span className="stat-delta">{paidOrders30} paid orders</span>
+            <span className="stat-delta">{selectedCombinedOrders} combined orders in range</span>
           </div>
         </div>
+
         <div className="stat-card">
           <span>To Fulfil</span>
           <strong>{toFulfil}</strong>
           <div className="stat-foot">
             <span className="stat-delta">
-              {customerCount} customers · {newCustomers} new · {activeProducts} live products
+              Includes pending, payment pending, paid, processing, packed, and shipped orders
             </span>
+          </div>
+          <div className="stat-subline">
+            {customerCount} customers total, {newCustomers} new in range, {activeProducts} live products
           </div>
         </div>
       </div>
@@ -231,7 +496,7 @@ export default async function AdminDashboard() {
         <div className="chart-card">
           <div className="chart-card-head">
             <h3>Revenue Trend</h3>
-            <span>paid orders, daily</span>
+            <span>online paid plus offline sales</span>
           </div>
           <AreaChart data={revenueSeries} color={CHART_COLORS[0]} currency />
         </div>
@@ -248,14 +513,14 @@ export default async function AdminDashboard() {
         <div className="chart-card">
           <div className="chart-card-head">
             <h3>Orders Per Day</h3>
-            <span>all statuses</span>
+            <span>online orders plus offline bills</span>
           </div>
           <BarChart data={orderSeries} color={CHART_COLORS[1]} />
         </div>
         <div className="chart-card">
           <div className="chart-card-head">
             <h3>Revenue by Category</h3>
-            <span>last 30 days</span>
+            <span>{rangeConfig.label.toLowerCase()}</span>
           </div>
           <HBarChart data={categoryData} color={CHART_COLORS[2]} currency />
         </div>
@@ -265,7 +530,7 @@ export default async function AdminDashboard() {
         <div className="chart-card">
           <div className="chart-card-head">
             <h3>Top Products</h3>
-            <span>by revenue, last 30 days</span>
+            <span>combined online and offline revenue</span>
           </div>
           {topProducts.length ? (
             <table className="admin-table">
@@ -277,23 +542,24 @@ export default async function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {topProducts.map((p) => (
-                  <tr key={p.title}>
-                    <td>{p.title}</td>
-                    <td>{p.units}</td>
-                    <td>{formatINR(Math.round(p.revenue))}</td>
+                {topProducts.map((product) => (
+                  <tr key={product.title}>
+                    <td>{product.title}</td>
+                    <td>{product.units}</td>
+                    <td>{formatINR(Math.round(product.revenue))}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           ) : (
-            <p className="chart-empty">No paid sales in the last 30 days yet.</p>
+            <p className="chart-empty">No sales found for the selected range.</p>
           )}
         </div>
+
         <div className="chart-card">
           <div className="chart-card-head">
             <h3>Low Stock</h3>
-            <Link href="/admin/inventory">Manage →</Link>
+            <Link href="/admin/inventory">Manage</Link>
           </div>
           {lowStock.length ? (
             <table className="admin-table">
@@ -307,10 +573,7 @@ export default async function AdminDashboard() {
                 {lowStock.map((product) => (
                   <tr key={product.id}>
                     <td>
-                      <Link
-                        href={`/admin/products/${product.id}`}
-                        style={{ color: "var(--maroon)", fontWeight: 700 }}
-                      >
+                      <Link href={`/admin/products/${product.id}`} style={{ color: "var(--maroon)", fontWeight: 700 }}>
                         {product.title}
                       </Link>
                     </td>
@@ -331,7 +594,7 @@ export default async function AdminDashboard() {
               </tbody>
             </table>
           ) : (
-            <p className="chart-empty">All products comfortably stocked.</p>
+            <p className="chart-empty">All active products are stocked above the low-stock threshold.</p>
           )}
         </div>
       </div>
@@ -339,7 +602,7 @@ export default async function AdminDashboard() {
       <div className="chart-card">
         <div className="chart-card-head">
           <h3>Recent Orders</h3>
-          <Link href="/admin/orders">View all →</Link>
+          <Link href="/admin/orders">View all</Link>
         </div>
         <table className="admin-table">
           <thead>
@@ -347,6 +610,7 @@ export default async function AdminDashboard() {
               <th>Order</th>
               <th>Customer</th>
               <th>Items</th>
+              <th>Source</th>
               <th>Total</th>
               <th>Status</th>
             </tr>
@@ -355,10 +619,7 @@ export default async function AdminDashboard() {
             {recentOrders.map((order) => (
               <tr key={order.id}>
                 <td>
-                  <Link
-                    href={`/admin/orders/${order.id}`}
-                    style={{ color: "var(--maroon)", fontWeight: 700 }}
-                  >
+                  <Link href={`/admin/orders/${order.id}`} style={{ color: "var(--maroon)", fontWeight: 700 }}>
                     {order.orderNumber}
                   </Link>
                 </td>
@@ -367,19 +628,18 @@ export default async function AdminDashboard() {
                   <br />
                   <small style={{ color: "var(--muted)" }}>{order.phone}</small>
                 </td>
-                <td>{order.items.reduce((n, i) => n + i.quantity, 0)}</td>
+                <td>{order.items.reduce((count, item) => count + item.quantity, 0)}</td>
+                <td>{order.source.replace(/_/g, " ")}</td>
                 <td>{formatINR(order.grandTotal)}</td>
                 <td>
-                  <span className={`status-pill ${order.status}`}>
-                    {order.status.replace(/_/g, " ")}
-                  </span>
+                  <span className={`status-pill ${order.status}`}>{order.status.replace(/_/g, " ")}</span>
                 </td>
               </tr>
             ))}
             {!recentOrders.length ? (
               <tr>
-                <td colSpan={5} style={{ color: "var(--muted)" }}>
-                  No orders yet — they will appear here the moment one is placed.
+                <td colSpan={6} style={{ color: "var(--muted)" }}>
+                  No orders yet.
                 </td>
               </tr>
             ) : null}

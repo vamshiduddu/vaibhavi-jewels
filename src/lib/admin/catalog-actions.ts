@@ -1,7 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
+import { CACHE_TAGS } from "@/lib/cache";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { generateProductBarcodeValue, normalizeBarcodeValue } from "@/lib/barcode";
@@ -30,6 +31,29 @@ function slugFrom(formData: FormData, nameKey = "name"): string {
   return slugify(explicit || str(formData, nameKey));
 }
 
+async function generateUniqueSku(title: string): Promise<string> {
+  const titlePart = slugify(title)
+    .replace(/-/g, "")
+    .toUpperCase()
+    .slice(0, 4) || "ITEM";
+  const date = new Date();
+  const ymd = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(
+    date.getDate(),
+  ).padStart(2, "0")}`;
+
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+    const sku = `VJ-${titlePart}-${ymd}-${suffix}`;
+    const existing = await db.product.findUnique({
+      where: { sku },
+      select: { id: true },
+    });
+    if (!existing) return sku;
+  }
+
+  return `VJ-${titlePart}-${Date.now().toString(36).toUpperCase()}`;
+}
+
 // ---------- Categories ----------
 
 export async function saveCategory(formData: FormData) {
@@ -50,6 +74,7 @@ export async function saveCategory(formData: FormData) {
   } else {
     await db.category.create({ data });
   }
+  revalidateTag(CACHE_TAGS.catalog);
   revalidatePath("/admin/categories");
   redirect("/admin/categories");
 }
@@ -58,6 +83,7 @@ export async function deleteCategory(formData: FormData) {
   await requireAdmin("catalog");
   const id = str(formData, "id");
   await db.category.delete({ where: { id } });
+  revalidateTag(CACHE_TAGS.catalog);
   revalidatePath("/admin/categories");
 }
 
@@ -79,6 +105,7 @@ export async function saveSubcategory(formData: FormData) {
   } else {
     await db.subcategory.create({ data });
   }
+  revalidateTag(CACHE_TAGS.catalog);
   revalidatePath("/admin/subcategories");
   redirect("/admin/subcategories");
 }
@@ -86,6 +113,7 @@ export async function saveSubcategory(formData: FormData) {
 export async function deleteSubcategory(formData: FormData) {
   await requireAdmin("catalog");
   await db.subcategory.delete({ where: { id: str(formData, "id") } });
+  revalidateTag(CACHE_TAGS.catalog);
   revalidatePath("/admin/subcategories");
 }
 
@@ -110,6 +138,7 @@ export async function saveCollection(formData: FormData) {
   } else {
     await db.collection.create({ data });
   }
+  revalidateTag(CACHE_TAGS.catalog);
   revalidatePath("/admin/collections");
   redirect("/admin/collections");
 }
@@ -117,6 +146,7 @@ export async function saveCollection(formData: FormData) {
 export async function deleteCollection(formData: FormData) {
   await requireAdmin("catalog");
   await db.collection.delete({ where: { id: str(formData, "id") } });
+  revalidateTag(CACHE_TAGS.catalog);
   revalidatePath("/admin/collections");
 }
 
@@ -125,6 +155,7 @@ export async function deleteCollection(formData: FormData) {
 export async function saveProduct(formData: FormData) {
   await requireAdmin("catalog");
   const id = optional(formData, "id");
+  const rawSku = optional(formData, "sku");
 
   let media: { url: string; kind: "image" | "video" }[] = [];
   try {
@@ -146,7 +177,7 @@ export async function saveProduct(formData: FormData) {
     price: num(formData, "price"),
     compareAtPrice: optional(formData, "compareAtPrice") ? num(formData, "compareAtPrice") : null,
     purchaseCost: optional(formData, "purchaseCost") ? num(formData, "purchaseCost") : null,
-    sku: optional(formData, "sku"),
+    sku: rawSku,
     barcodeValue: null as string | null,
     barcodeType: (str(formData, "barcodeType") || "code39") as "code39" | "code128" | "qr",
     stockQuantity: num(formData, "stockQuantity"),
@@ -173,6 +204,7 @@ export async function saveProduct(formData: FormData) {
     seoTitle: optional(formData, "seoTitle"),
     seoDescription: optional(formData, "seoDescription"),
   };
+  data.sku = rawSku || (await generateUniqueSku(data.title));
   data.barcodeValue =
     normalizeBarcodeValue(optional(formData, "barcodeValue") || "") ||
     generateProductBarcodeValue({ sku: data.sku, title: data.title });
@@ -202,6 +234,7 @@ export async function saveProduct(formData: FormData) {
     });
   }
 
+  revalidateTag(CACHE_TAGS.catalog);
   revalidatePath("/admin/products");
   redirect("/admin/products");
 }
@@ -212,6 +245,7 @@ export async function archiveProduct(formData: FormData) {
     where: { id: str(formData, "id") },
     data: { status: "archived" },
   });
+  revalidateTag(CACHE_TAGS.catalog);
   revalidatePath("/admin/products");
 }
 

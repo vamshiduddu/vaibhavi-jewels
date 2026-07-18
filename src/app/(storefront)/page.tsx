@@ -1,32 +1,19 @@
 import Link from "next/link";
-import { db } from "@/lib/db";
+import { getActiveCategories, getActiveCollections, getHomepageBanners, getHomepageNewArrivals } from "@/lib/catalog";
 import { getSections, getSettings, whatsappLink } from "@/lib/content";
 import { getActivePromotions } from "@/lib/pricing";
 import ProductCard from "@/components/ProductCard";
 
 export default async function HomePage() {
-  const now = new Date();
   const [sections, settings, promotions, collections, categories, newArrivals, banners] =
     await Promise.all([
       getSections(),
       getSettings(),
       getActivePromotions(),
-      db.collection.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } }),
-      db.category.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } }),
-      db.product.findMany({
-        where: { status: "active" },
-        orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
-        take: 6,
-        include: { images: { where: { kind: "image" }, orderBy: [{ featured: "desc" }, { sortOrder: "asc" }], take: 1 } },
-      }),
-      db.banner.findMany({
-        where: {
-          active: true,
-          OR: [{ startsAt: null }, { startsAt: { lte: now } }],
-          AND: [{ OR: [{ endsAt: null }, { endsAt: { gte: now } }] }],
-        },
-        orderBy: { sortOrder: "asc" },
-      }),
+      getActiveCollections(),
+      getActiveCategories(),
+      getHomepageNewArrivals(),
+      getHomepageBanners(),
     ]);
 
   const hero = sections.hero;

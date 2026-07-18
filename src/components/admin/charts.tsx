@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 
 /* Validated chart palette (dataviz six-checks, surface #fffdf8):
    #9c2434 maroon-red · #b47a1d gold · #0e8f7e teal · #5865c0 indigo */
@@ -78,7 +78,7 @@ export function AreaChart({
 
   const line = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
   const area = `${line} L${(PAD.left + iw).toFixed(1)},${PAD.top + ih} L${PAD.left},${PAD.top + ih} Z`;
-  const gid = useMemo(() => `g${Math.random().toString(36).slice(2, 8)}`, []);
+  const gid = useId().replace(/:/g, "");
 
   function onMove(e: React.MouseEvent<SVGSVGElement>) {
     const rect = e.currentTarget.getBoundingClientRect();

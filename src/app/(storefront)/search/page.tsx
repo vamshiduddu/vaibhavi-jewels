@@ -17,6 +17,8 @@ export default async function SearchPage({ searchParams }: Props) {
           status: "active",
           OR: [
             { title: { contains: query, mode: "insensitive" } },
+            { sku: { contains: query, mode: "insensitive" } },
+            { barcodeValue: { contains: query, mode: "insensitive" } },
             { shortDescription: { contains: query, mode: "insensitive" } },
             { tags: { has: query.toLowerCase() } },
             { category: { name: { contains: query, mode: "insensitive" } } },

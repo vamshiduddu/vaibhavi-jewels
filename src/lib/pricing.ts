@@ -1,5 +1,7 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import type { Coupon, Product, Promotion } from "@prisma/client";
+import { CACHE_TAGS } from "@/lib/cache";
 import { db } from "@/lib/db";
 import { toNumber } from "@/lib/format";
 
@@ -18,13 +20,21 @@ function isWithinWindow(startsAt: Date | null, endsAt: Date | null, now: Date): 
   return true;
 }
 
+const getPromotionsCached = unstable_cache(
+  async () => {
+    const now = new Date();
+    const promotions = await db.promotion.findMany({
+      where: { active: true },
+      orderBy: { priority: "desc" },
+    });
+    return promotions.filter((p) => isWithinWindow(p.startsAt, p.endsAt, now));
+  },
+  ["promotions:active"],
+  { revalidate: 120, tags: [CACHE_TAGS.promotions] },
+);
+
 export async function getActivePromotions(): Promise<Promotion[]> {
-  const now = new Date();
-  const promotions = await db.promotion.findMany({
-    where: { active: true },
-    orderBy: { priority: "desc" },
-  });
-  return promotions.filter((p) => isWithinWindow(p.startsAt, p.endsAt, now));
+  return getPromotionsCached();
 }
 
 function promotionApplies(promo: Promotion, product: Product): boolean {
@@ -124,15 +134,23 @@ export function evaluateCoupon(coupon: Coupon | null, subtotal: number): CouponR
   return { ok: true, coupon, discount };
 }
 
+const getShippingConfigCached = unstable_cache(
+  async () => {
+    const settings = await db.siteSetting.findMany({
+      where: { key: { in: ["shipping_flat_rate", "free_shipping_threshold"] } },
+    });
+    const map = Object.fromEntries(settings.map((s) => [s.key, s.value]));
+    return {
+      flatRate: Number(map.shipping_flat_rate ?? 79),
+      freeThreshold: Number(map.free_shipping_threshold ?? 999),
+    };
+  },
+  ["settings:shipping"],
+  { revalidate: 300, tags: [CACHE_TAGS.settings] },
+);
+
 export async function getShippingConfig(): Promise<{ flatRate: number; freeThreshold: number }> {
-  const settings = await db.siteSetting.findMany({
-    where: { key: { in: ["shipping_flat_rate", "free_shipping_threshold"] } },
-  });
-  const map = Object.fromEntries(settings.map((s) => [s.key, s.value]));
-  return {
-    flatRate: Number(map.shipping_flat_rate ?? 79),
-    freeThreshold: Number(map.free_shipping_threshold ?? 999),
-  };
+  return getShippingConfigCached();
 }
 
 export function shippingFor(subtotalAfterDiscount: number, config: { flatRate: number; freeThreshold: number }): number {

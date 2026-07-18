@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { effectivePrice, getActivePromotions } from "@/lib/pricing";
 import { formatINR } from "@/lib/format";
 import { getWishlistSessionId } from "@/lib/wishlist-actions";
+import { getProductPageData } from "@/lib/product-read";
 import AddToCartButton from "@/components/AddToCartButton";
 import WishlistButton from "@/components/WishlistButton";
 import ProductCard from "@/components/ProductCard";
@@ -14,33 +15,19 @@ type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const product = await db.product.findUnique({
-    where: { slug },
-    include: {
-      images: { where: { kind: "image" }, take: 1, orderBy: [{ featured: "desc" }, { sortOrder: "asc" }] },
-    },
-  });
+  const product = await getProductPageData(slug);
   if (!product) return {};
+  const image = product.images.find((item) => item.kind === "image");
   return {
     title: product.seoTitle ?? product.title,
     description: product.seoDescription ?? product.shortDescription ?? undefined,
-    openGraph: product.images[0] ? { images: [product.images[0].url] } : undefined,
+    openGraph: image ? { images: [image.url] } : undefined,
   };
 }
 
 export default async function ProductPage({ params }: Props) {
   const { slug } = await params;
-  const product = await db.product.findUnique({
-    where: { slug },
-    include: {
-      images: { orderBy: [{ featured: "desc" }, { sortOrder: "asc" }] },
-      category: true,
-      subcategory: true,
-      collection: true,
-      attributes: true,
-      reviews: { where: { approved: true }, orderBy: { createdAt: "desc" }, take: 6 },
-    },
-  });
+  const product = await getProductPageData(slug);
   if (!product || product.status !== "active") notFound();
 
   const promotions = await getActivePromotions();
