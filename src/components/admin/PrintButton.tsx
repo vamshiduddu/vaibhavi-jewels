@@ -1,7 +1,9 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 type Props = {
-  children: React.ReactNode;
+  children: ReactNode;
   sheetId: string;
   className?: string;
   title?: string;
@@ -193,6 +195,8 @@ const SHIPPING_PRINT_CSS = `
   }
 `;
 
+const IOS_PRINT_STORAGE_KEY = "vaibhavi-admin-print";
+
 export default function PrintButton({
   children,
   sheetId,
@@ -201,7 +205,7 @@ export default function PrintButton({
   disabled = false,
   variant = "barcode",
 }: Props) {
-  function buildPrintMarkup(sourceHtml: string, pageTitle: string) {
+  function buildPrintMarkup(sourceHtml: string, pageTitle: string, css: string) {
     return `
       <!doctype html>
       <html>
@@ -209,13 +213,19 @@ export default function PrintButton({
           <meta charset="utf-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           <title>${pageTitle}</title>
-          <style>${variant === "shipping" ? SHIPPING_PRINT_CSS : BARCODE_PRINT_CSS}</style>
+          <style>${css}</style>
         </head>
         <body>
           <div class="print-root">${sourceHtml}</div>
         </body>
       </html>
     `;
+  }
+
+  function isIOSDevice() {
+    if (typeof navigator === "undefined") return false;
+    const ua = navigator.userAgent || "";
+    return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   }
 
   return (
@@ -228,7 +238,24 @@ export default function PrintButton({
         const source = document.getElementById(sheetId);
         if (!source) return;
         const pageTitle = title || "Barcode Labels";
-        const markup = buildPrintMarkup(source.outerHTML, pageTitle);
+        const css = variant === "shipping" ? SHIPPING_PRINT_CSS : BARCODE_PRINT_CSS;
+
+        if (isIOSDevice()) {
+          sessionStorage.setItem(
+            IOS_PRINT_STORAGE_KEY,
+            JSON.stringify({
+              css,
+              html: source.outerHTML,
+              title: pageTitle,
+              variant,
+              ts: Date.now(),
+            }),
+          );
+          window.location.href = `/admin/print?variant=${variant}`;
+          return;
+        }
+
+        const markup = buildPrintMarkup(source.outerHTML, pageTitle, css);
 
         const frame = document.createElement("iframe");
         frame.setAttribute("aria-hidden", "true");
