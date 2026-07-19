@@ -91,7 +91,8 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
               </Link>
             ))}
           </div>
-          <table className="admin-table">
+          <div className="admin-table-wrap">
+            <table className="admin-table">
             <thead>
               <tr>
                 <th>Order</th>
@@ -139,7 +140,8 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
                 </tr>
               ) : null}
             </tbody>
-          </table>
+            </table>
+          </div>
         </>
       ) : (
         <ShippingLabelManager

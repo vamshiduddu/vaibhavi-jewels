@@ -33,6 +33,13 @@ function csv(value: string): string[] {
     .filter(Boolean);
 }
 
+function values(formData: FormData, key: string): string[] {
+  return formData
+    .getAll(key)
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+}
+
 export async function saveAdminUser(formData: FormData) {
   await requireAdmin("users");
   const id = optional(formData, "id");
@@ -42,8 +49,8 @@ export async function saveAdminUser(formData: FormData) {
     name: str(formData, "name"),
     role: (str(formData, "role") || "support") as AdminRole,
     roleLabel: optional(formData, "roleLabel"),
-    grantedPermissions: csv(str(formData, "grantedPermissions")),
-    deniedPermissions: csv(str(formData, "deniedPermissions")),
+    grantedPermissions: values(formData, "grantedPermissions"),
+    deniedPermissions: values(formData, "deniedPermissions"),
     active: bool(formData, "active"),
   };
 

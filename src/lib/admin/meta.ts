@@ -1,6 +1,6 @@
 import { formatINR } from "@/lib/format";
 
-export const ADMIN_PERMISSION_HELP = [
+export const ADMIN_PERMISSIONS = [
   "catalog",
   "content",
   "promotions",
@@ -17,7 +17,9 @@ export const ADMIN_PERMISSION_HELP = [
   "inventory:read",
   "offline-sales:read",
   "purchases:read",
-].join(", ");
+] as const;
+
+export const ADMIN_PERMISSION_HELP = ADMIN_PERMISSIONS.join(", ");
 
 export function saleSummaryText(total: number, count: number) {
   return `${count} item${count === 1 ? "" : "s"} · ${formatINR(total)}`;

@@ -274,8 +274,12 @@ export default async function AdminDashboard({
   const selectedAverageOrderValue = selectedCombinedOrders
     ? selectedCombinedRevenue / selectedCombinedOrders
     : 0;
+  const previousAverageOrderValue = previousCombinedOrders
+    ? previousCombinedRevenue / previousCombinedOrders
+    : 0;
 
   const toFulfil = ordersInRange.filter((order) => fulfilmentStatusSet.has(order.status)).length;
+  const previousToFulfil = previousOrders.filter((order) => fulfilmentStatusSet.has(order.status)).length;
 
   const revenueByDay = new Map<string, number>();
   const ordersByDay = new Map<string, number>();
@@ -365,6 +369,12 @@ export default async function AdminDashboard({
 
   const revenueDelta = percentDelta(selectedCombinedRevenue, previousCombinedRevenue);
   const ordersDelta = percentDelta(selectedCombinedOrders, previousCombinedOrders);
+  const onlineRevenueDelta = percentDelta(selectedOnlineRevenue, previousOnlineRevenue);
+  const d2cRevenueDelta = percentDelta(selectedD2cRevenue, previousD2cRevenue);
+  const onlineOrdersDelta = percentDelta(selectedOnlineOrders, previousOnlineOrders);
+  const d2cOrdersDelta = percentDelta(selectedD2cOrders, previousD2cOrders);
+  const averageOrderValueDelta = percentDelta(selectedAverageOrderValue, previousAverageOrderValue);
+  const fulfilmentDelta = percentDelta(toFulfil, previousToFulfil);
   const revenueSpark = revenueSeries.slice(-Math.min(revenueSeries.length, 14)).map((point) => point.value);
   const orderSpark = orderSeries.slice(-Math.min(orderSeries.length, 14)).map((point) => point.value);
 
@@ -432,7 +442,7 @@ export default async function AdminDashboard({
             )}
             <Sparkline data={revenueSpark.length ? revenueSpark : [0]} color={CHART_COLORS[0]} />
           </div>
-          <div className="stat-subline">All time {formatINR(Math.round(allCombinedRevenue))}</div>
+          <div className="stat-subline">Previous range {formatINR(Math.round(previousCombinedRevenue))}</div>
         </div>
 
         <div className="stat-card">
@@ -448,61 +458,102 @@ export default async function AdminDashboard({
             )}
             <Sparkline data={orderSpark.length ? orderSpark : [0]} color={CHART_COLORS[1]} />
           </div>
-          <div className="stat-subline">All time {allCombinedOrders}</div>
+          <div className="stat-subline">Previous range {previousCombinedOrders}</div>
         </div>
 
         <div className="stat-card">
           <span>Online Revenue</span>
           <strong>{formatINR(Math.round(selectedOnlineRevenue))}</strong>
           <div className="stat-foot">
-            <span className="stat-delta">{selectedOnlineOrders} online orders in range</span>
+            {onlineRevenueDelta !== null ? (
+              <span className={`stat-delta ${onlineRevenueDelta >= 0 ? "up" : "down"}`}>
+                {onlineRevenueDelta >= 0 ? "Up" : "Down"} {Math.abs(onlineRevenueDelta).toFixed(0)}% vs previous range
+              </span>
+            ) : (
+              <span className="stat-delta">No previous range data</span>
+            )}
           </div>
-          <div className="stat-subline">All time {formatINR(Math.round(allOnlineRevenue))}</div>
+          <div className="stat-subline">
+            {selectedOnlineOrders} online orders in range, previous revenue {formatINR(Math.round(previousOnlineRevenue))}
+          </div>
         </div>
 
         <div className="stat-card">
           <span>D2C Revenue</span>
           <strong>{formatINR(Math.round(selectedD2cRevenue))}</strong>
           <div className="stat-foot">
-            <span className="stat-delta">{selectedD2cOrders} D2C orders in range</span>
+            {d2cRevenueDelta !== null ? (
+              <span className={`stat-delta ${d2cRevenueDelta >= 0 ? "up" : "down"}`}>
+                {d2cRevenueDelta >= 0 ? "Up" : "Down"} {Math.abs(d2cRevenueDelta).toFixed(0)}% vs previous range
+              </span>
+            ) : (
+              <span className="stat-delta">No previous range data</span>
+            )}
           </div>
-          <div className="stat-subline">All time {formatINR(Math.round(allD2cRevenue))}</div>
+          <div className="stat-subline">
+            {selectedD2cOrders} D2C orders in range, previous revenue {formatINR(Math.round(previousD2cRevenue))}
+          </div>
         </div>
 
         <div className="stat-card">
           <span>Online Orders</span>
           <strong>{selectedOnlineOrders}</strong>
           <div className="stat-foot">
-            <span className="stat-delta">All time {allOnlineOrders}</span>
+            {onlineOrdersDelta !== null ? (
+              <span className={`stat-delta ${onlineOrdersDelta >= 0 ? "up" : "down"}`}>
+                {onlineOrdersDelta >= 0 ? "Up" : "Down"} {Math.abs(onlineOrdersDelta).toFixed(0)}% vs previous range
+              </span>
+            ) : (
+              <span className="stat-delta">No previous range data</span>
+            )}
           </div>
+          <div className="stat-subline">Previous range {previousOnlineOrders}</div>
         </div>
 
         <div className="stat-card">
           <span>D2C Orders</span>
           <strong>{selectedD2cOrders}</strong>
           <div className="stat-foot">
-            <span className="stat-delta">All time {allD2cOrders}</span>
+            {d2cOrdersDelta !== null ? (
+              <span className={`stat-delta ${d2cOrdersDelta >= 0 ? "up" : "down"}`}>
+                {d2cOrdersDelta >= 0 ? "Up" : "Down"} {Math.abs(d2cOrdersDelta).toFixed(0)}% vs previous range
+              </span>
+            ) : (
+              <span className="stat-delta">No previous range data</span>
+            )}
           </div>
+          <div className="stat-subline">Previous range {previousD2cOrders}</div>
         </div>
 
         <div className="stat-card">
           <span>Avg Order Value</span>
           <strong>{formatINR(Math.round(selectedAverageOrderValue))}</strong>
           <div className="stat-foot">
-            <span className="stat-delta">{selectedCombinedOrders} combined orders in range</span>
+            {averageOrderValueDelta !== null ? (
+              <span className={`stat-delta ${averageOrderValueDelta >= 0 ? "up" : "down"}`}>
+                {averageOrderValueDelta >= 0 ? "Up" : "Down"} {Math.abs(averageOrderValueDelta).toFixed(0)}% vs previous range
+              </span>
+            ) : (
+              <span className="stat-delta">No previous range data</span>
+            )}
           </div>
+          <div className="stat-subline">Previous range {formatINR(Math.round(previousAverageOrderValue))}</div>
         </div>
 
         <div className="stat-card">
           <span>To Fulfil</span>
           <strong>{toFulfil}</strong>
           <div className="stat-foot">
-            <span className="stat-delta">
-              Includes pending, payment pending, paid, processing, packed, and shipped orders in range
-            </span>
+            {fulfilmentDelta !== null ? (
+              <span className={`stat-delta ${fulfilmentDelta >= 0 ? "up" : "down"}`}>
+                {fulfilmentDelta >= 0 ? "Up" : "Down"} {Math.abs(fulfilmentDelta).toFixed(0)}% vs previous range
+              </span>
+            ) : (
+              <span className="stat-delta">No previous range data</span>
+            )}
           </div>
           <div className="stat-subline">
-            {customerCount} customers total, {newCustomers} new in range, {activeProducts} live products
+            Previous range {previousToFulfil}, {newCustomers} new customers in range, {activeProducts} live products
           </div>
         </div>
       </div>

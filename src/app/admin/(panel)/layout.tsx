@@ -1,4 +1,4 @@
-import Link from "next/link";
+import AdminSidebar from "@/components/admin/AdminSidebar";
 import { adminLogout } from "@/lib/admin/auth-actions";
 import { hasPermission, requireAdmin } from "@/lib/auth";
 
@@ -27,40 +27,16 @@ export default async function AdminPanelLayout({ children }: { children: React.R
       grantedPermissions: session.grantedPermissions,
       deniedPermissions: session.deniedPermissions,
     }),
-  );
+  ).map((item) => ({ href: item.href, label: item.label }));
 
   return (
     <div className="admin-shell">
-      <aside className="admin-sidebar">
-        <div className="admin-brand">Vaibhavi Admin</div>
-        {nav.map((item) => (
-          <Link key={item.href} href={item.href}>
-            {item.label}
-          </Link>
-        ))}
-        <div className="sidebar-footer">
-          <div style={{ marginBottom: 8 }}>
-            {session.name} · {(session.roleLabel || session.role).replace(/_/g, " ")}
-          </div>
-          <form action={adminLogout}>
-            <button
-              type="submit"
-              style={{
-                background: "none",
-                border: "1px solid rgba(255,255,255,0.3)",
-                borderRadius: 6,
-                color: "inherit",
-                cursor: "pointer",
-                fontSize: 13,
-                fontWeight: 700,
-                padding: "6px 14px",
-              }}
-            >
-              Sign out
-            </button>
-          </form>
-        </div>
-      </aside>
+      <AdminSidebar
+        nav={nav}
+        userName={session.name}
+        roleLabel={(session.roleLabel || session.role).replace(/_/g, " ")}
+        logoutAction={adminLogout}
+      />
       <main className="admin-main">{children}</main>
     </div>
   );

@@ -1,5 +1,5 @@
 import { saveAdminUser } from "@/lib/admin/operations-actions";
-import { ADMIN_PERMISSION_HELP } from "@/lib/admin/meta";
+import { ADMIN_PERMISSIONS } from "@/lib/admin/meta";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 
@@ -64,23 +64,40 @@ export default async function AdminUsersPage({ searchParams }: Props) {
               Password {selected ? "(leave blank to keep current password)" : ""}
               <input name="password" type="password" />
             </label>
-            <label>
-              Granted Permissions (comma separated)
-              <input
-                name="grantedPermissions"
-                defaultValue={selected?.grantedPermissions.join(", ") ?? ""}
-              />
-            </label>
-            <label>
-              Denied Permissions (comma separated)
-              <input
-                name="deniedPermissions"
-                defaultValue={selected?.deniedPermissions.join(", ") ?? ""}
-              />
-            </label>
-            <p className="form-success" style={{ margin: 0 }}>
-              Available permissions: {ADMIN_PERMISSION_HELP}
-            </p>
+            <div className="permission-grid-block">
+              <div>
+                <strong style={{ display: "block", marginBottom: 10 }}>Granted Permissions</strong>
+                <div className="permission-grid">
+                  {ADMIN_PERMISSIONS.map((permission) => (
+                    <label key={`grant-${permission}`} className="checkbox-label permission-check">
+                      <input
+                        type="checkbox"
+                        name="grantedPermissions"
+                        value={permission}
+                        defaultChecked={selected?.grantedPermissions.includes(permission) ?? false}
+                      />
+                      {permission}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <strong style={{ display: "block", marginBottom: 10 }}>Denied Permissions</strong>
+                <div className="permission-grid">
+                  {ADMIN_PERMISSIONS.map((permission) => (
+                    <label key={`deny-${permission}`} className="checkbox-label permission-check">
+                      <input
+                        type="checkbox"
+                        name="deniedPermissions"
+                        value={permission}
+                        defaultChecked={selected?.deniedPermissions.includes(permission) ?? false}
+                      />
+                      {permission}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
             <label className="checkbox-label">
               <input type="checkbox" name="active" defaultChecked={selected?.active ?? true} />
               Active account

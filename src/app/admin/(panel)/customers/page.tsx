@@ -16,7 +16,8 @@ export default async function AdminCustomersPage() {
       <div className="admin-header">
         <h1>Customers</h1>
       </div>
-      <table className="admin-table">
+      <div className="admin-table-wrap">
+        <table className="admin-table">
         <thead>
           <tr>
             <th>Name</th>
@@ -51,7 +52,8 @@ export default async function AdminCustomersPage() {
             </tr>
           ) : null}
         </tbody>
-      </table>
+        </table>
+      </div>
     </>
   );
 }
