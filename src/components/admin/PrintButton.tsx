@@ -229,22 +229,6 @@ export default function PrintButton({
         if (!source) return;
         const pageTitle = title || "Barcode Labels";
         const markup = buildPrintMarkup(source.outerHTML, pageTitle);
-        const isMobile =
-          typeof window !== "undefined" &&
-          window.matchMedia?.("(max-width: 820px)").matches;
-
-        if (isMobile) {
-          const popup = window.open("", "_blank", "noopener,noreferrer");
-          if (!popup) return;
-          popup.document.open();
-          popup.document.write(markup);
-          popup.document.close();
-          popup.focus();
-          window.setTimeout(() => {
-            popup.print();
-          }, 350);
-          return;
-        }
 
         const frame = document.createElement("iframe");
         frame.setAttribute("aria-hidden", "true");
@@ -263,6 +247,13 @@ export default function PrintButton({
           return;
         }
 
+        let cleanedUp = false;
+        const cleanup = () => {
+          if (cleanedUp) return;
+          cleanedUp = true;
+          if (document.body.contains(frame)) frame.remove();
+        };
+
         doc.open();
         doc.write(markup);
         doc.close();
@@ -270,17 +261,13 @@ export default function PrintButton({
         win.focus();
         win.addEventListener(
           "afterprint",
-          () => {
-            frame.remove();
-          },
+          cleanup,
           { once: true },
         );
+        frame.addEventListener("load", () => window.setTimeout(() => win.print(), 180), { once: true });
         setTimeout(() => {
-          win.print();
-          setTimeout(() => {
-            if (document.body.contains(frame)) frame.remove();
-          }, 1500);
-        }, 250);
+          cleanup();
+        }, 2000);
       }}
     >
       {children}
