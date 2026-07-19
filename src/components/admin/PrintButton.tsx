@@ -103,23 +103,32 @@ const SHIPPING_PRINT_CSS = `
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #fff; color: #111; font-family: Inter, Arial, sans-serif; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .print-root { padding: 0; width: 194mm; }
+  .print-root {
+    padding: 0;
+    width: 194mm;
+    min-height: 281mm;
+    margin: 0 auto;
+  }
   .shipping-print-sheet {
     width: 194mm;
+    min-height: 281mm;
     display: grid;
     gap: 3mm;
     grid-template-columns: repeat(2, 95.5mm);
+    grid-template-rows: repeat(2, 139mm);
     grid-auto-rows: 139mm;
     align-content: start;
     background-image:
       linear-gradient(to right, transparent 97mm, #b8b8b8 97mm, #b8b8b8 97.25mm, transparent 97.25mm),
       linear-gradient(to bottom, transparent 140.5mm, #b8b8b8 140.5mm, #b8b8b8 140.75mm, transparent 140.75mm);
     background-size: 194mm 281mm;
-    background-repeat: repeat-y;
+    background-repeat: no-repeat;
+    page-break-inside: avoid;
+    break-inside: avoid-page;
   }
   .shipping-print-card {
     width: 95.5mm;
-    min-height: 139mm;
+    height: 139mm;
     border: 0.3mm solid #111;
     border-radius: 2mm;
     display: grid;
@@ -128,6 +137,7 @@ const SHIPPING_PRINT_CSS = `
     break-inside: avoid;
     background: #fff;
     page-break-inside: avoid;
+    overflow: hidden;
   }
   .shipping-print-top,
   .shipping-print-meta,
