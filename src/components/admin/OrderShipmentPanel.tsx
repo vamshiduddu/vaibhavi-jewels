@@ -29,6 +29,11 @@ export default function OrderShipmentPanel({
 
   async function copy(value: string, message: string) {
     if (!value) return;
+    if (typeof document !== "undefined" && !document.hasFocus()) {
+      setToast("Clipboard copy failed");
+      window.setTimeout(() => setToast(null), 1800);
+      return;
+    }
     try {
       await navigator.clipboard.writeText(value);
       setToast(message);

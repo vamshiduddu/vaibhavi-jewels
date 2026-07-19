@@ -14,10 +14,14 @@ type Props = {
 
 async function copyText(value: string) {
   if (!value) return;
+  if (typeof document !== "undefined" && !document.hasFocus()) {
+    return false;
+  }
   try {
     await navigator.clipboard.writeText(value);
+    return true;
   } catch {
-    // Ignore clipboard failures in unsupported browsers.
+    return false;
   }
 }
 
@@ -37,8 +41,8 @@ export default function ProductAiPanel({
 
   async function handleCopy(value: string, label: string) {
     if (!value) return;
-    await copyText(value);
-    setToast(`${label} copied to clipboard`);
+    const ok = await copyText(value);
+    setToast(ok ? `${label} copied to clipboard` : "Clipboard copy failed");
     window.setTimeout(() => setToast(null), 1800);
   }
 
